@@ -3,7 +3,7 @@ import { loginInternal } from '../../layanan/authApi';
 
 export default function LoginInternal({ mode, tutup, sukses, beriNotifikasi }) {
   const [form, setForm] = useState({
-    email: mode === 'admin' ? 'admin@brewvibe.id' : 'pegawai@brewvibe.id',
+    email: mode === 'admin' ? 'admin@dikacoffeshop.id' : 'pegawai@dikacoffeshop.id',
     password: mode === 'admin' ? 'admin123' : 'pegawai123',
   });
   const [loading, setLoading] = useState(false);
@@ -36,7 +36,7 @@ export default function LoginInternal({ mode, tutup, sukses, beriNotifikasi }) {
         <p>Gunakan akun yang terdaftar di backend. Validasi email dan password diproses oleh Spring Boot.</p>
 
         <label>Email</label>
-        <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@brewvibe.id" />
+        <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@dikacoffeshop.id" />
 
         <label>Password</label>
         <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Masukkan password" />

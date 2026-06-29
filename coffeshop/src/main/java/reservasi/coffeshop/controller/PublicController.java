@@ -1,6 +1,7 @@
 package reservasi.coffeshop.controller;
 
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import reservasi.coffeshop.dto.*;
@@ -20,6 +21,9 @@ public class PublicController {
     private final ReservationService reservationService;
     private final OrderService orderService;
 
+    @Value("${server.port:8081}")
+    private String serverPort;
+
     public PublicController(MenuService menuService, PromoService promoService, TableService tableService, ReservationService reservationService, OrderService orderService) {
         this.menuService = menuService;
         this.promoService = promoService;
@@ -30,7 +34,7 @@ public class PublicController {
 
     @GetMapping("/health")
     public Map<String, String> health() {
-        return Map.of("status", "UP", "service", "BrewVibe Backend", "port", "8081");
+        return Map.of("status", "UP", "service", "Dika Coffe Shop Backend", "port", serverPort);
     }
 
     @GetMapping("/menu")
@@ -49,9 +53,10 @@ public class PublicController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "HH:mm") LocalTime time,
             @RequestParam(defaultValue = "1") int guests,
             @RequestParam(required = false) String area,
-            @RequestParam(required = false) String floor
+            @RequestParam(required = false) String floor,
+            @RequestParam(required = false) Integer durationMinutes
     ) {
-        return tableService.getAvailability(date, time, guests, area, floor);
+        return tableService.getAvailability(date, time, guests, area, floor, durationMinutes);
     }
 
     @PostMapping("/reservations")

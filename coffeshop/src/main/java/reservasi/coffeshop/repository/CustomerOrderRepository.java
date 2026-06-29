@@ -7,6 +7,7 @@ import reservasi.coffeshop.entity.CustomerOrder;
 import reservasi.coffeshop.entity.OrderStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -15,7 +16,12 @@ public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Lo
     Optional<CustomerOrder> findByCodeIgnoreCase(String code);
     List<CustomerOrder> findByReservation_CodeIgnoreCaseOrderByCreatedAtDesc(String reservationCode);
     List<CustomerOrder> findByCreatedAtBetweenOrderByCreatedAtDesc(LocalDateTime start, LocalDateTime end);
+    List<CustomerOrder> findByCreatedAtBetweenAndReservation_AssignedEmployeeIgnoreCaseOrderByCreatedAtDesc(LocalDateTime start, LocalDateTime end, String assignedEmployee);
+
+    @Query("select o from CustomerOrder o join o.reservation r where r.reservationDate between :start and :end order by r.reservationDate asc, r.reservationTime asc, o.createdAt desc")
+    List<CustomerOrder> findByReservationDateBetweenOrderByReservationSchedule(@Param("start") LocalDate start, @Param("end") LocalDate end);
     List<CustomerOrder> findAllByOrderByCreatedAtDesc();
+    boolean existsByReservation_IdAndStatusNotIn(Long reservationId, java.util.Collection<OrderStatus> statuses);
 
     @Query("select coalesce(sum(o.total), 0) from CustomerOrder o where o.createdAt between :start and :end and o.status <> :excludedStatus")
     BigDecimal sumRevenueBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, @Param("excludedStatus") OrderStatus excludedStatus);

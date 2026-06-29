@@ -5,7 +5,7 @@ import ModelLokal3D from './ModelLokal3D';
 
 export default function VisualKafe3D() {
   return (
-    <div className="scene3d refined coffee-only" aria-label="Visual 3D coffee cup BrewVibe">
+    <div className="scene3d refined coffee-only" aria-label="Visual 3D coffee cup Dika Coffe Shop">
       <Canvas camera={{ position: [0, 1.6, 5.4], fov: 31 }} dpr={[1, 1.5]}>
         <ambientLight intensity={2.7} />
         <directionalLight position={[4.5, 6, 4.5]} intensity={3.2} />

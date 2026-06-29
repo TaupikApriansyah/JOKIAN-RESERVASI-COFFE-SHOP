@@ -28,9 +28,9 @@ export default function HeaderUtama({ ubahHalaman, bukaLogin, user, keluar }) {
 
   return (
     <header className={`site-header cafe-navbar ${scrolled ? 'is-scrolled' : ''}`}>
-      <button className="brand cafe-brand" onClick={() => pindah('home')} aria-label="Buka halaman utama BrewVibe">
-        <span>B</span>
-        <strong>BrewVibe</strong>
+      <button className="brand cafe-brand" onClick={() => pindah('home')} aria-label="Buka halaman utama Dika Coffe Shop">
+        <span>D</span>
+        <strong>Dika Coffe Shop</strong>
       </button>
 
       <nav className="desktop-nav">

@@ -11,6 +11,8 @@ public record ReservationResponse(
         String phone,
         LocalDate reservationDate,
         LocalTime reservationTime,
+        int durationMinutes,
+        LocalTime reservationEndTime,
         int guestCount,
         String area,
         String floor,

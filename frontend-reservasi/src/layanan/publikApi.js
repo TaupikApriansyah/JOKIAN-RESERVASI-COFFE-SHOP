@@ -8,12 +8,13 @@ export function ambilPromoPublik() {
   return panggilApi('/promos');
 }
 
-export function ambilMejaTersedia({ tanggal, jam, jumlahTamu, area }) {
+export function ambilMejaTersedia({ tanggal, jam, jumlahTamu, area, durasiMenit }) {
   const query = new URLSearchParams({
     date: tanggal,
     time: jam,
     guests: String(jumlahTamu),
     area,
+    durationMinutes: String(durasiMenit || 120),
   });
   return panggilApi(`/tables?${query}`);
 }

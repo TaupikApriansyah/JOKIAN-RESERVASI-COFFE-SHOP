@@ -17,6 +17,7 @@ public class MappingService {
     public ReservationResponse toReservationResponse(Reservation r) {
         return new ReservationResponse(
                 r.getId(), r.getCode(), r.getGuestName(), r.getPhone(), r.getReservationDate(), r.getReservationTime(),
+                r.getDurationMinutes(), r.getReservationEndTime(),
                 r.getGuestCount(), r.getArea(), r.getTable().getFloor(), r.getTable().getCode(), r.getStatus().name(), r.getSpecialRequest(),
                 r.getAssignedEmployee(), r.getAssignedAt(), r.getHandledBy(), r.getHandledAt(), r.getCancelReason(),
                 r.getCheckedInAt(), r.getCompletedAt(), r.getCancelledAt(), r.getCreatedAt()
@@ -29,9 +30,29 @@ public class MappingService {
     }
 
     public OrderResponse toOrderResponse(CustomerOrder order) {
+        Reservation reservation = order.getReservation();
+        CafeTable table = reservation.getTable();
         return new OrderResponse(
-                order.getId(), order.getCode(), order.getReservation().getCode(), order.getStatus().name(),
-                order.getSubtotal(), order.getDiscount(), order.getTotal(), order.getAppliedPromo(), order.getHandledBy(), order.getCreatedAt(),
+                order.getId(),
+                order.getCode(),
+                reservation.getCode(),
+                reservation.getReservationDate(),
+                reservation.getReservationTime(),
+                reservation.getReservationEndTime(),
+                reservation.getGuestName(),
+                reservation.getPhone(),
+                reservation.getArea(),
+                table == null ? null : table.getFloor(),
+                table == null ? null : table.getCode(),
+                reservation.getAssignedEmployee(),
+                reservation.getStatus().name(),
+                order.getStatus().name(),
+                order.getSubtotal(),
+                order.getDiscount(),
+                order.getTotal(),
+                order.getAppliedPromo(),
+                order.getHandledBy(),
+                order.getCreatedAt(),
                 order.getItems().stream().map(this::toOrderItemResponse).toList()
         );
     }

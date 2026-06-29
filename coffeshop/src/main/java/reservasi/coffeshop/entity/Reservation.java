@@ -31,6 +31,12 @@ public class Reservation {
     private LocalTime reservationTime;
 
     @Column(nullable = false)
+    private int durationMinutes = 120;
+
+    @Column(name = "reservation_end_time")
+    private LocalTime reservationEndTime;
+
+    @Column(nullable = false)
     private int guestCount;
 
     @Column(nullable = false, length = 40)
@@ -80,6 +86,10 @@ public class Reservation {
     public void setReservationDate(LocalDate reservationDate) { this.reservationDate = reservationDate; }
     public LocalTime getReservationTime() { return reservationTime; }
     public void setReservationTime(LocalTime reservationTime) { this.reservationTime = reservationTime; }
+    public int getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(int durationMinutes) { this.durationMinutes = durationMinutes; }
+    public LocalTime getReservationEndTime() { return reservationEndTime; }
+    public void setReservationEndTime(LocalTime reservationEndTime) { this.reservationEndTime = reservationEndTime; }
     public int getGuestCount() { return guestCount; }
     public void setGuestCount(int guestCount) { this.guestCount = guestCount; }
     public String getArea() { return area; }

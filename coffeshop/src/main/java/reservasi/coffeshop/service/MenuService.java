@@ -2,15 +2,22 @@ package reservasi.coffeshop.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import reservasi.coffeshop.dto.MenuItemResponse;
 import reservasi.coffeshop.dto.SaveMenuItemRequest;
+import reservasi.coffeshop.exception.BadRequestException;
 import reservasi.coffeshop.entity.MenuItem;
 import reservasi.coffeshop.exception.NotFoundException;
 import reservasi.coffeshop.repository.MenuItemRepository;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class MenuService {
@@ -19,6 +26,9 @@ public class MenuService {
     private final MappingService mapper;
     private final RealtimeService realtimeService;
     private final AuditLogService auditLogService;
+
+    @Value("${app.upload.dir:uploads}")
+    private String uploadDirectory;
 
     public MenuService(MenuItemRepository menuRepository, MappingService mapper, RealtimeService realtimeService, AuditLogService auditLogService) {
         this.menuRepository = menuRepository;
@@ -33,6 +43,44 @@ public class MenuService {
 
     public List<MenuItemResponse> findAll() {
         return menuRepository.findAllByOrderByCategoryAscNameAsc().stream().map(mapper::toMenuResponse).toList();
+    }
+
+    public String saveImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("File gambar wajib dipilih.");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            throw new BadRequestException("File harus berupa gambar.");
+        }
+        if (file.getSize() > 2 * 1024 * 1024) {
+            throw new BadRequestException("Ukuran gambar maksimal 2 MB.");
+        }
+
+        String originalName = file.getOriginalFilename() == null ? "menu.png" : file.getOriginalFilename();
+        String extension = ".png";
+        int dotIndex = originalName.lastIndexOf('.');
+        if (dotIndex >= 0 && dotIndex < originalName.length() - 1) {
+            extension = originalName.substring(dotIndex).toLowerCase();
+        }
+        if (!List.of(".jpg", ".jpeg", ".png", ".webp").contains(extension)) {
+            throw new BadRequestException("Format gambar harus JPG, PNG, atau WEBP.");
+        }
+
+        try {
+            Path uploadDir = Paths.get(uploadDirectory, "menu").toAbsolutePath().normalize();
+            java.nio.file.Files.createDirectories(uploadDir);
+            String fileName = UUID.randomUUID() + extension;
+            Path target = uploadDir.resolve(fileName).normalize();
+            if (!target.startsWith(uploadDir)) {
+                throw new BadRequestException("Nama file gambar tidak valid.");
+            }
+            file.transferTo(target);
+            log.info("Gambar menu diupload: {}", fileName);
+            return "/uploads/menu/" + fileName;
+        } catch (IOException ex) {
+            throw new BadRequestException("Gagal menyimpan gambar menu.");
+        }
     }
 
     @Transactional

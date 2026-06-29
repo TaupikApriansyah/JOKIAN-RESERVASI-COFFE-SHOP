@@ -12,29 +12,43 @@ import reservasi.coffeshop.exception.NotFoundException;
 import reservasi.coffeshop.repository.CustomerOrderRepository;
 import reservasi.coffeshop.repository.MenuItemRepository;
 import reservasi.coffeshop.repository.ReservationRepository;
+import reservasi.coffeshop.repository.UserAccountRepository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.Optional;
+import java.util.Comparator;
 
 @Service
 public class OrderService {
     private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+    private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_ORDER_FLOW = Map.of(
+            OrderStatus.PENDING_PAYMENT, Set.of(OrderStatus.PROCESSING, OrderStatus.CANCELLED),
+            OrderStatus.PROCESSING, Set.of(OrderStatus.READY, OrderStatus.CANCELLED),
+            OrderStatus.READY, Set.of(OrderStatus.COMPLETED, OrderStatus.CANCELLED),
+            OrderStatus.COMPLETED, Set.of(OrderStatus.COMPLETED),
+            OrderStatus.CANCELLED, Set.of(OrderStatus.CANCELLED)
+    );
     private final CustomerOrderRepository orderRepository;
     private final ReservationRepository reservationRepository;
+    private final UserAccountRepository userRepository;
     private final MenuItemRepository menuRepository;
     private final MappingService mapper;
     private final RealtimeService realtimeService;
     private final AuditLogService auditLogService;
 
-    public OrderService(CustomerOrderRepository orderRepository, ReservationRepository reservationRepository, MenuItemRepository menuRepository, MappingService mapper, RealtimeService realtimeService, AuditLogService auditLogService) {
+    public OrderService(CustomerOrderRepository orderRepository, ReservationRepository reservationRepository, UserAccountRepository userRepository, MenuItemRepository menuRepository, MappingService mapper, RealtimeService realtimeService, AuditLogService auditLogService) {
         this.orderRepository = orderRepository;
         this.reservationRepository = reservationRepository;
+        this.userRepository = userRepository;
         this.menuRepository = menuRepository;
         this.mapper = mapper;
         this.realtimeService = realtimeService;
@@ -45,8 +59,11 @@ public class OrderService {
     public OrderResponse create(CreateOrderRequest request) {
         Reservation reservation = reservationRepository.findByCodeIgnoreCase(request.reservationCode())
                 .orElseThrow(() -> new NotFoundException("Kode reservasi tidak ditemukan. Selesaikan reservasi meja terlebih dahulu."));
-        if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.COMPLETED) {
+        if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.COMPLETED || reservation.getStatus() == ReservationStatus.NO_SHOW) {
             throw new BadRequestException("Reservasi sudah tidak aktif. Pesanan menu tidak dapat dibuat.");
+        }
+        if (reservation.getStatus() == ReservationStatus.PENDING) {
+            throw new BadRequestException("Reservasi belum terkonfirmasi. Tunggu sistem mengonfirmasi meja dan shift terlebih dahulu.");
         }
 
         CustomerOrder order = new CustomerOrder();
@@ -102,10 +119,111 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> findToday() {
+        return findToday(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> findToday(String employeeName) {
+        if (employeeName != null && !employeeName.isBlank()) {
+            // Workspace pegawai harus membaca pesanan dari jadwal reservasi, bukan dari tanggal pesanan dibuat.
+            // Ini membuat pembayaran/pesanan customer muncul di pegawai shift yang sama seperti reservasi.
+            LocalDate startDate = LocalDate.now();
+            LocalDate endDate = startDate.plusDays(30);
+            List<CustomerOrder> scheduledOrders = orderRepository.findByReservationDateBetweenOrderByReservationSchedule(startDate, endDate)
+                    .stream()
+                    .filter(this::isVisibleInEmployeeWorkspace)
+                    .sorted(Comparator
+                            .comparing((CustomerOrder order) -> order.getReservation().getReservationDate())
+                            .thenComparing(order -> order.getReservation().getReservationTime())
+                            .thenComparing(CustomerOrder::getCreatedAt))
+                    .toList();
+
+            String cleanEmployee = employeeName.trim();
+            return findActiveEmployeeByIdentity(cleanEmployee)
+                    .map(employee -> filterOrdersForEmployeeShift(scheduledOrders, employee))
+                    .orElseGet(() -> scheduledOrders.stream()
+                            .filter(order -> order.getReservation() != null && cleanEmployee.equalsIgnoreCase(cleanNullable(order.getReservation().getAssignedEmployee())))
+                            .toList())
+                    .stream()
+                    .map(mapper::toOrderResponse)
+                    .toList();
+        }
+
         LocalDateTime start = LocalDateTime.now().with(LocalTime.MIN);
         LocalDateTime end = LocalDateTime.now().with(LocalTime.MAX);
-        return orderRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end).stream().map(mapper::toOrderResponse).toList();
+        List<CustomerOrder> todayOrders = orderRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end);
+        return todayOrders.stream().map(mapper::toOrderResponse).toList();
     }
+
+
+    private boolean isVisibleInEmployeeWorkspace(CustomerOrder order) {
+        if (order == null || order.getReservation() == null) return false;
+        boolean activeOrder = order.getStatus() == OrderStatus.PENDING_PAYMENT
+                || order.getStatus() == OrderStatus.PROCESSING
+                || order.getStatus() == OrderStatus.READY;
+        boolean activeReservation = order.getReservation().getStatus() == ReservationStatus.CONFIRMED
+                || order.getReservation().getStatus() == ReservationStatus.CHECKED_IN
+                || order.getReservation().getStatus() == ReservationStatus.SERVING;
+        return activeOrder && activeReservation;
+    }
+
+    private Optional<UserAccount> findActiveEmployeeByIdentity(String identity) {
+        if (identity == null || identity.trim().isBlank()) return Optional.empty();
+        String cleanIdentity = identity.trim();
+        Optional<UserAccount> byEmail = userRepository.findByEmailIgnoreCase(cleanIdentity)
+                .filter(user -> user.getRole() == Role.PEGAWAI && user.isActive());
+        if (byEmail.isPresent()) return byEmail;
+        return userRepository.findByFullNameIgnoreCaseAndRoleAndActiveTrue(cleanIdentity, Role.PEGAWAI);
+    }
+
+    private List<CustomerOrder> filterOrdersForEmployeeShift(List<CustomerOrder> orders, UserAccount employee) {
+        String shiftName = employee.getShiftName() == null ? "" : employee.getShiftName().toLowerCase(Locale.ROOT);
+        if (shiftName.contains("backup")) {
+            return orders;
+        }
+        LocalTime shiftStart = employee.getShiftStart();
+        LocalTime shiftEnd = employee.getShiftEnd();
+        if (shiftStart == null || shiftEnd == null) {
+            return orders.stream()
+                    .filter(order -> order.getReservation() != null && employee.getFullName().equalsIgnoreCase(cleanNullable(order.getReservation().getAssignedEmployee())))
+                    .toList();
+        }
+        return orders.stream()
+                .filter(order -> order.getReservation() != null && order.getReservation().getReservationTime() != null)
+                .filter(order -> isReservationOverlappingShift(order.getReservation(), shiftStart, shiftEnd)
+                        || employee.getFullName().equalsIgnoreCase(cleanNullable(order.getReservation().getAssignedEmployee())))
+                .toList();
+    }
+
+    private boolean isReservationOverlappingShift(Reservation reservation, LocalTime shiftStart, LocalTime shiftEnd) {
+        LocalTime reservationStart = reservation.getReservationTime();
+        LocalTime reservationEnd = reservation.getReservationEndTime();
+        if (reservationEnd == null && reservationStart != null) {
+            int duration = reservation.getDurationMinutes() > 0 ? reservation.getDurationMinutes() : 120;
+            reservationEnd = reservationStart.plusMinutes(duration);
+        }
+        if (reservationStart == null) return false;
+        if (reservationEnd == null || reservationEnd.equals(reservationStart)) {
+            return isTimeInsideShift(reservationStart, shiftStart, shiftEnd);
+        }
+        if (shiftStart.equals(shiftEnd)) return true;
+        if (shiftStart.isBefore(shiftEnd)) {
+            return reservationStart.isBefore(shiftEnd) && reservationEnd.isAfter(shiftStart);
+        }
+        return !reservationStart.isBefore(shiftStart) || reservationEnd.isAfter(shiftStart) || reservationStart.isBefore(shiftEnd);
+    }
+
+    private boolean isTimeInsideShift(LocalTime time, LocalTime start, LocalTime end) {
+        if (start.equals(end)) return true;
+        if (start.isBefore(end)) {
+            boolean insideMainRange = !time.isBefore(start) && time.isBefore(end);
+            boolean closingTime = time.equals(end) && end.equals(LocalTime.of(21, 0));
+            return insideMainRange || closingTime;
+        }
+        return !time.isBefore(start) || time.isBefore(end);
+    }
+
+    private String cleanNullable(String value) { return value == null || value.trim().isBlank() ? null : value.trim(); }
 
     @Transactional(readOnly = true)
     public List<OrderResponse> findAll() {
@@ -126,10 +244,12 @@ public class OrderService {
         } catch (Exception ex) {
             throw new BadRequestException("Status pesanan tidak valid.");
         }
+        validateOrderTransition(order.getStatus(), status);
+        validateOrderOperationalRules(order, status);
         order.setStatus(status);
         order.setHandledBy(actorName == null || actorName.isBlank() ? "Pegawai" : actorName.trim());
         order.setHandledAt(LocalDateTime.now());
-        if (status == OrderStatus.PROCESSING && order.getReservation().getStatus() == ReservationStatus.CHECKED_IN) {
+        if (status == OrderStatus.PROCESSING) {
             order.getReservation().setStatus(ReservationStatus.SERVING);
             order.getReservation().setHandledBy(order.getHandledBy());
             order.getReservation().setHandledAt(LocalDateTime.now());
@@ -143,6 +263,22 @@ public class OrderService {
         auditLogService.save("ORDER_STATUS", saved.getHandledBy(), "Mengubah status pesanan " + saved.getCode() + " menjadi " + saved.getStatus());
         realtimeService.publish("order_updated");
         return mapper.toOrderResponse(saved);
+    }
+
+    private void validateOrderTransition(OrderStatus current, OrderStatus next) {
+        if (!ALLOWED_ORDER_FLOW.getOrDefault(current, Set.of()).contains(next)) {
+            throw new BadRequestException("Alur pesanan tidak valid. Gunakan alur PENDING_PAYMENT → PROCESSING → READY → COMPLETED atau CANCELLED.");
+        }
+    }
+
+    private void validateOrderOperationalRules(CustomerOrder order, OrderStatus next) {
+        ReservationStatus reservationStatus = order.getReservation().getStatus();
+        if (next == OrderStatus.PROCESSING && reservationStatus != ReservationStatus.CHECKED_IN && reservationStatus != ReservationStatus.SERVING) {
+            throw new BadRequestException("Pesanan baru dapat dibayar dan diproses setelah customer check-in.");
+        }
+        if (next == OrderStatus.COMPLETED && order.getStatus() != OrderStatus.READY) {
+            throw new BadRequestException("Pesanan hanya dapat diselesaikan setelah status READY.");
+        }
     }
 
     private PromoResult calculatePromo(BigDecimal subtotal, Map<String, Integer> categoryQty, boolean hasCoffee, boolean hasRiceBowl) {

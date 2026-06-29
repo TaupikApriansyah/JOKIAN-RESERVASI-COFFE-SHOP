@@ -6,18 +6,19 @@ import LayoutInternal from '../../komponen/layout/LayoutInternal';
 import StatusLabel from '../../komponen/ui/StatusLabel';
 import Kosong from '../../komponen/ui/Kosong';
 
-export default function RuangPegawai({ beriNotifikasi, keluar }) {
+export default function RuangPegawai({ beriNotifikasi, keluar, user }) {
   const [tabAktif, setTabAktif] = useState('antrian');
   const [reservasi, setReservasi] = useState([]);
   const [pesanan, setPesanan] = useState([]);
   const [meja, setMeja] = useState([]);
   const [pencarian, setPencarian] = useState('');
   const [loading, setLoading] = useState(false);
+  const actorName = user?.fullName || 'Pegawai Dika Coffe Shop';
 
   async function muatData() {
     setLoading(true);
     try {
-      const data = await ambilDataPegawai(tanggalHariIni);
+      const data = await ambilDataPegawai(tanggalHariIni, actorName);
       setReservasi(data.reservasi || []);
       setPesanan(data.pesanan || []);
       setMeja(data.meja || []);
@@ -32,7 +33,7 @@ export default function RuangPegawai({ beriNotifikasi, keluar }) {
 
   async function updateReservasi(id, status) {
     try {
-      await ubahStatusReservasiPegawai(id, status);
+      await ubahStatusReservasiPegawai(id, status, actorName);
       await muatData();
       beriNotifikasi('Status diperbarui', `Reservasi menjadi ${status}.`, 'success');
     } catch (error) {
@@ -42,7 +43,7 @@ export default function RuangPegawai({ beriNotifikasi, keluar }) {
 
   async function updatePesanan(id, status) {
     try {
-      await ubahStatusPesananPegawai(id, status);
+      await ubahStatusPesananPegawai(id, status, actorName);
       await muatData();
       beriNotifikasi('Status pesanan diperbarui', `Pesanan menjadi ${status}.`, 'success');
     } catch (error) {
@@ -73,7 +74,7 @@ export default function RuangPegawai({ beriNotifikasi, keluar }) {
       tabs={tabs}
       judul="Antrian reservasi dan pesanan"
       deskripsi="Konfirmasi reservasi, check-in customer, update pesanan, dan pantau meja dari satu workspace pegawai."
-      catatan={{ judul: 'Shift Hari Ini', isi: 'Konfirmasi, check-in, update pesanan, dan selesaikan reservasi.' }}
+      catatan={{ judul: 'Shift Hari Ini', isi: `${actorName} • reservasi otomatis sesuai jadwal shift.` }}
       tombolRefresh={muatData}
       loading={loading}
       keluar={keluar}
@@ -104,7 +105,8 @@ export default function RuangPegawai({ beriNotifikasi, keluar }) {
                   <div className="queue-actions-kode-dua">
                     {item.status === 'PENDING' && <button onClick={() => updateReservasi(item.id, 'CONFIRMED')}>Konfirmasi</button>}
                     {['PENDING', 'CONFIRMED'].includes(item.status) && <button className="aksi-utama" onClick={() => updateReservasi(item.id, 'CHECKED_IN')}>Check-in</button>}
-                    {item.status === 'CHECKED_IN' && <button className="aksi-selesai" onClick={() => updateReservasi(item.id, 'COMPLETED')}><CheckCircle size={15} /> Selesai</button>}
+                    {item.status === 'CONFIRMED' && <button onClick={() => updateReservasi(item.id, 'NO_SHOW')}>No-show</button>}
+                    {['CHECKED_IN','SERVING'].includes(item.status) && <button className="aksi-selesai" onClick={() => updateReservasi(item.id, 'COMPLETED')}><CheckCircle size={15} /> Selesai</button>}
                     {item.status === 'COMPLETED' && <span className="done-chip">Done ✓</span>}
                   </div>
                 </article>
@@ -136,7 +138,7 @@ export default function RuangPegawai({ beriNotifikasi, keluar }) {
                 <div className="time-badge-kode-dua">{potongJam(item.reservationTime)}</div>
                 <div className="queue-info-kode-dua"><b>{item.guestName}</b><span>{item.phone} · {item.code} · Meja {item.tableCode}</span></div>
                 <StatusLabel nilai={item.status} />
-                <div className="queue-actions-kode-dua"><button className="aksi-utama" onClick={() => updateReservasi(item.id, 'CHECKED_IN')}>Check-in</button><button onClick={() => updateReservasi(item.id, 'CANCELLED')}>Cancel</button></div>
+                <div className="queue-actions-kode-dua">{['PENDING','CONFIRMED'].includes(item.status) && <button className="aksi-utama" onClick={() => updateReservasi(item.id, 'CHECKED_IN')}>Check-in</button>}{item.status === 'CONFIRMED' && <button onClick={() => updateReservasi(item.id, 'NO_SHOW')}>No-show</button>}<button onClick={() => updateReservasi(item.id, 'CANCELLED')}>Cancel</button></div>
               </article>
             )) : <Kosong judul="Tidak ada hasil" deskripsi="Masukkan kode reservasi, nama, atau nomor WhatsApp customer." />}
           </div>
@@ -151,7 +153,12 @@ export default function RuangPegawai({ beriNotifikasi, keluar }) {
               <article className="order-work-item" key={item.id || item.code}>
                 <div><span>{item.code}</span><b>{formatRupiah(item.total)}</b><small>{item.reservationCode} · {item.appliedPromo || 'Tanpa promo'}</small></div>
                 <StatusLabel nilai={item.status} />
-                <div className="queue-actions-kode-dua"><button onClick={() => updatePesanan(item.id, 'PROCESSING')}>Proses</button><button className="aksi-utama" onClick={() => updatePesanan(item.id, 'READY')}>Siap</button><button className="aksi-selesai" onClick={() => updatePesanan(item.id, 'COMPLETED')}>Selesai</button></div>
+                <div className="queue-actions-kode-dua">
+                  {item.status === 'PENDING_PAYMENT' && <button onClick={() => updatePesanan(item.id, 'PROCESSING')}>Bayar & Proses</button>}
+                  {item.status === 'PROCESSING' && <button className="aksi-utama" onClick={() => updatePesanan(item.id, 'READY')}>Siap</button>}
+                  {item.status === 'READY' && <button className="aksi-selesai" onClick={() => updatePesanan(item.id, 'COMPLETED')}>Selesai</button>}
+                  {['PENDING_PAYMENT','PROCESSING'].includes(item.status) && <button onClick={() => updatePesanan(item.id, 'CANCELLED')}>Batal</button>}
+                </div>
               </article>
             )) : <Kosong judul="Pesanan kosong" deskripsi="Pesanan dari cart customer akan tampil di sini." />}
           </div>

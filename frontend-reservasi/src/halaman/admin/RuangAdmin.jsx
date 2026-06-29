@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarCheck, Clock, Coffee, DollarSign, Table2, FileText, Users } from 'lucide-react';
-import { ambilDataAdmin } from '../../layanan/adminApi';
+import { ambilDataAdmin, simpanShiftPegawai } from '../../layanan/adminApi';
 import { buatCsv, formatRupiah, tanggalHariIni } from '../../utilitas/format';
 import LayoutInternal from '../../komponen/layout/LayoutInternal';
 import StatusLabel from '../../komponen/ui/StatusLabel';
@@ -15,6 +15,8 @@ export default function RuangAdmin({ beriNotifikasi, keluar }) {
   const [pesanan, setPesanan] = useState([]);
   const [meja, setMeja] = useState([]);
   const [menu, setMenu] = useState([]);
+  const [pegawai, setPegawai] = useState([]);
+  const [shiftDraft, setShiftDraft] = useState({});
   const [loading, setLoading] = useState(false);
 
   async function muatData() {
@@ -26,6 +28,7 @@ export default function RuangAdmin({ beriNotifikasi, keluar }) {
       setPesanan(data.pesanan || []);
       setMeja(data.meja || []);
       setMenu(data.menu || []);
+      setPegawai(data.pegawai || []);
     } catch (error) {
       beriNotifikasi('Admin gagal memuat data', error.message, 'error');
     } finally {
@@ -41,16 +44,17 @@ export default function RuangAdmin({ beriNotifikasi, keluar }) {
     ['pesanan', 'Pesanan'],
     ['meja', 'Meja'],
     ['menu', 'Menu'],
+    ['shift', 'Shift Pegawai'],
     ['laporan', 'Laporan'],
   ];
 
-  const pendingReservasi = reservasi.filter((item) => item.status === 'PENDING').length;
+  const reservasiTerjadwal = reservasi.filter((item) => ['CONFIRMED', 'CHECKED_IN', 'SERVING'].includes(item.status)).length;
   const mejaAktif = reservasi.filter((item) => item.status === 'CHECKED_IN').length;
   const revenueHariIni = pesanan.reduce((sum, item) => sum + Number(item.total || 0), 0);
 
   const statistik = [
     { label: 'Reservasi Hari Ini', value: dashboard?.totalReservationsToday ?? reservasi.length, icon: CalendarCheck, tone: 'coklat' },
-    { label: 'Menunggu Konfirmasi', value: pendingReservasi, icon: Clock, tone: 'kuning' },
+    { label: 'Reservasi Terjadwal', value: reservasiTerjadwal, icon: Clock, tone: 'kuning' },
     { label: 'Meja Aktif', value: mejaAktif, icon: Users, tone: 'ungu' },
     { label: 'Revenue', value: formatRupiah(dashboard?.revenueToday ?? revenueHariIni), icon: DollarSign, tone: 'hijau' },
   ];
@@ -70,10 +74,30 @@ export default function RuangAdmin({ beriNotifikasi, keluar }) {
 
   function eksporCsv() {
     const baris = [
-      ['Kode Reservasi', 'Tamu', 'Tanggal', 'Jam', 'Meja', 'Status'],
-      ...reservasi.map((item) => [item.code, item.guestName, item.reservationDate, item.reservationTime, item.tableCode, item.status]),
+      ['Kode Reservasi', 'Tamu', 'Tanggal', 'Jam', 'Durasi', 'Meja', 'Pegawai Shift', 'Status'],
+      ...reservasi.map((item) => [item.code, item.guestName, item.reservationDate, item.reservationTime, `${item.durationMinutes || 120} menit`, item.tableCode, item.assignedEmployee || '-', item.status]),
     ];
-    buatCsv(`brewvibe-reservasi-${tanggalHariIni}.csv`, baris);
+    buatCsv(`dikacoffeshop-reservasi-${tanggalHariIni}.csv`, baris);
+  }
+
+  function ubahDraftShift(id, field, value) {
+    setShiftDraft((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
+  }
+
+  async function simpanShift(item) {
+    const draft = shiftDraft[item.id] || {};
+    try {
+      await simpanShiftPegawai(item.id, {
+        shiftName: draft.shiftName ?? item.shiftName ?? 'Shift Pegawai',
+        shiftStart: draft.shiftStart ?? item.shiftStart ?? '09:00:00',
+        shiftEnd: draft.shiftEnd ?? item.shiftEnd ?? '21:00:00',
+        active: draft.active ?? item.active ?? true,
+      });
+      await muatData();
+      beriNotifikasi('Shift diperbarui', `Jadwal ${item.fullName} berhasil disimpan.`, 'success');
+    } catch (error) {
+      beriNotifikasi('Gagal menyimpan shift', error.message, 'error');
+    }
   }
 
   return (
@@ -152,7 +176,7 @@ export default function RuangAdmin({ beriNotifikasi, keluar }) {
         </div>
       )}
 
-      {tabAktif === 'reservasi' && <TabelData judul="Manajemen Reservasi" kolom={['Kode', 'Tamu', 'Kontak', 'Tanggal', 'Jam', 'Meja', 'Area', 'Status']} baris={reservasi.map((item) => [item.code, item.guestName, item.phone, item.reservationDate, item.reservationTime, item.tableCode, item.area, item.status])} />}
+      {tabAktif === 'reservasi' && <TabelData judul="Manajemen Reservasi" kolom={['Kode', 'Tamu', 'Kontak', 'Tanggal', 'Jam', 'Durasi', 'Meja', 'Area', 'Pegawai Shift', 'Status']} baris={reservasi.map((item) => [item.code, item.guestName, item.phone, item.reservationDate, item.reservationTime, `${item.durationMinutes || 120} menit`, item.tableCode, item.area, item.assignedEmployee || '-', item.status])} />}
       {tabAktif === 'pesanan' && <TabelData judul="Manajemen Pesanan" kolom={['Kode', 'Reservasi', 'Status', 'Subtotal', 'Diskon', 'Total', 'Promo']} baris={pesanan.map((item) => [item.code, item.reservationCode, item.status, formatRupiah(item.subtotal), formatRupiah(item.discount), formatRupiah(item.total), item.appliedPromo || '-'])} />}
 
       {tabAktif === 'meja' && (
@@ -169,6 +193,31 @@ export default function RuangAdmin({ beriNotifikasi, keluar }) {
           <div className="panel-title-row"><h2>Master Menu</h2><span>{menu.length} item</span></div>
           <div className="admin-menu-grid menu-grid-kode-dua">
             {menu.map((item) => <div className="admin-menu-item" key={item.id}><img src={item.imageUrl} alt={item.name} /><div><span>{item.category}</span><b>{item.name}</b><small>{item.description}</small></div><strong>{formatRupiah(item.price)}</strong></div>)}
+          </div>
+        </section>
+      )}
+
+
+      {tabAktif === 'shift' && (
+        <section className="panel-kode-dua panel-full">
+          <div className="panel-title-row"><h2>Jadwal Shift Pegawai</h2><span>{pegawai.length} pegawai aktif</span></div>
+          <p style={{ marginTop: 0, color: 'var(--muted)' }}>Admin mengatur jadwal shift. Saat customer reservasi, sistem otomatis memasukkan reservasi ke pegawai yang bertugas pada jam tersebut.</p>
+          <div className="queue-list-kode-dua">
+            {pegawai.length ? pegawai.map((item) => {
+              const draft = shiftDraft[item.id] || {};
+              return (
+                <article className="queue-row-kode-dua" key={item.id}>
+                  <div className="queue-info-kode-dua">
+                    <b>{item.fullName}</b>
+                    <span>{item.email} · {item.phone}</span>
+                  </div>
+                  <label className="mini-field">Nama shift<input value={draft.shiftName ?? item.shiftName ?? ''} onChange={(e) => ubahDraftShift(item.id, 'shiftName', e.target.value)} /></label>
+                  <label className="mini-field">Mulai<input type="time" value={String(draft.shiftStart ?? item.shiftStart ?? '09:00').slice(0,5)} onChange={(e) => ubahDraftShift(item.id, 'shiftStart', e.target.value)} /></label>
+                  <label className="mini-field">Selesai<input type="time" value={String(draft.shiftEnd ?? item.shiftEnd ?? '21:00').slice(0,5)} onChange={(e) => ubahDraftShift(item.id, 'shiftEnd', e.target.value)} /></label>
+                  <div className="queue-actions-kode-dua"><button className="primary" onClick={() => simpanShift(item)}>Simpan</button></div>
+                </article>
+              );
+            }) : <Kosong judul="Belum ada data pegawai" deskripsi="Pastikan seed akun pegawai berhasil dibuat di database." />}
           </div>
         </section>
       )}

@@ -44,9 +44,9 @@ export default function LayoutInternal({ jenis, tabAktif, setTabAktif, tabs, jud
       <aside className="sidebar-internal">
         <div className="sidebar-head-internal">
           <div className="logo-internal">
-            <span>B</span>
+            <span>D</span>
             <div>
-              <b>BrewVibe</b>
+              <b>Dika Coffe Shop</b>
               <small>{admin ? 'Ruang Admin' : 'Ruang Pegawai'}</small>
             </div>
           </div>

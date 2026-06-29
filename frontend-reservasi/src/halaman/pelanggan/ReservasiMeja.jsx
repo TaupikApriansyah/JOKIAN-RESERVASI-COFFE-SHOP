@@ -10,7 +10,8 @@ export default function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriN
     reservationTime: '19:00',
     guestCount: 2,
     area: 'Indoor',
-    tableCode: '',
+    durationMinutes: 120,
+    tableCode: '', 
     guestName: '',
     phone: '',
     specialRequest: '',
@@ -28,6 +29,7 @@ export default function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriN
           jam: form.reservationTime,
           jumlahTamu: form.guestCount,
           area: form.area,
+          durasiMenit: form.durationMinutes,
         });
         setDaftarMeja(data);
       } catch (error) {
@@ -37,11 +39,16 @@ export default function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriN
       }
     }
     muatMeja();
-  }, [form.reservationDate, form.reservationTime, form.guestCount, form.area]);
+  }, [form.reservationDate, form.reservationTime, form.guestCount, form.area, form.durationMinutes]);
 
   function ubah(field, nilai) {
-    const resetMeja = ['area', 'guestCount', 'reservationDate', 'reservationTime'].includes(field);
-    setForm((prev) => ({ ...prev, [field]: nilai, ...(resetMeja ? { tableCode: '' } : {}) }));
+    const resetMeja = ['area', 'guestCount', 'reservationDate', 'reservationTime', 'durationMinutes'].includes(field);
+    setForm((prev) => {
+      const next = { ...prev, [field]: nilai, ...(resetMeja ? { tableCode: '' } : {}) };
+      if (field === 'area' && nilai === 'Meeting Room') next.durationMinutes = Math.max(Number(prev.durationMinutes || 120), 180);
+      if (field === 'area' && nilai !== 'Meeting Room' && Number(prev.durationMinutes) > 180) next.durationMinutes = 120;
+      return next;
+    });
     setGalatKolom({});
   }
 
@@ -98,7 +105,8 @@ export default function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriN
             <label>Tanggal kunjungan<input type="date" min={tanggalHariIni} value={form.reservationDate} onChange={(e) => ubah('reservationDate', e.target.value)} /></label>
             <label>Jam kedatangan<input type="time" value={form.reservationTime} onChange={(e) => ubah('reservationTime', e.target.value)} /></label>
             <label>Jumlah tamu<input type="number" min="1" max="12" value={form.guestCount} onChange={(e) => ubah('guestCount', Number(e.target.value))} /></label>
-            <label>Preferensi area<select value={form.area} onChange={(e) => ubah('area', e.target.value)}><option>Indoor</option><option>Outdoor</option></select></label>
+            <label>Durasi reservasi<select value={form.durationMinutes} onChange={(e) => ubah('durationMinutes', Number(e.target.value))}><option value={120}>2 jam</option><option value={180}>3 jam</option><option value={240}>4 jam</option></select></label>
+            <label>Preferensi area<select value={form.area} onChange={(e) => ubah('area', e.target.value)}><option>Indoor</option><option>Outdoor</option><option>Meeting Room</option></select></label>
           </div>
         )}
 
@@ -143,7 +151,7 @@ export default function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriN
 
         {langkah === 4 && (
           <div className="review-lines">
-            <p><span>Tanggal dan jam</span><strong>{form.reservationDate} · {form.reservationTime}</strong></p>
+            <p><span>Tanggal dan jam</span><strong>{form.reservationDate} · {form.reservationTime} · {form.durationMinutes / 60} jam</strong></p>
             <p><span>Meja</span><strong>{form.tableCode || '-'} {mejaDipilih ? `· ${mejaDipilih.area} · ${mejaDipilih.capacity} kursi` : ''}</strong></p>
             <p><span>Jumlah tamu</span><strong>{form.guestCount} orang</strong></p>
             <p><span>Nama</span><strong>{form.guestName}</strong></p>
@@ -162,7 +170,7 @@ export default function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriN
         <div className="reservation-success">
           <span>Kode Reservasi</span>
           <strong>{reservasiAktif.code}</strong>
-          <p>Meja {reservasiAktif.tableCode} telah terhubung. Silakan lanjut memilih menu dan masukkan pesanan ke keranjang.</p>
+          <p>Meja {reservasiAktif.tableCode} telah terhubung ke pegawai shift {reservasiAktif.assignedEmployee || 'aktif'}. Silakan lanjut memilih menu atau datang sesuai jadwal.</p>
         </div>
       )}
     </section>

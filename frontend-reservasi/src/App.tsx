@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+// @ts-nocheck
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Menu as MenuIcon, X, CalendarCheck, Clock, Coffee, DollarSign, Table2, FileText,
@@ -201,6 +202,17 @@ i.available { background: #edf5ef; border: 1px solid #214734; } i.reserved { bac
 .status-pill.no_show, .status-pill.cancelled, .status-pill.maintenance { background: #fde8e4; color: #8a2f1f; }
 .status-pill.reserved { background: #fbefdc; color: #8c5b15; }
 .status-pill.available { background: #edf5ef; color: #214734; }
+.action-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 150px; }
+.mini-action { min-height: 34px; padding: 7px 12px; border-radius: 10px; font-size: .78rem; font-weight: 900; line-height: 1; white-space: nowrap; }
+.mini-action.next { background: linear-gradient(135deg, #221711, #3a2a21); color: #fff; }
+.mini-action.cancel { background: #fffdfa; color: #8a2f1f; border: 1px solid rgba(138,47,31,.18); }
+.mini-action.detail { background: #fffdfa; color: var(--espresso); border: 1px solid var(--line); }
+.mini-action.done { background: #f3eee7; color: var(--muted); cursor: default; }
+.mini-action:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(22,15,11,.08); }
+.detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 4px 0; }
+.detail-item { padding: 14px; border-radius: 14px; background: #f9f3ea; border: 1px solid var(--line); }
+.detail-item span { display: block; color: var(--muted); font-size: .78rem; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+.detail-item b { color: var(--espresso); word-break: break-word; }
 .admin-table-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .admin-table-cell { padding: 18px; border-radius: 16px; border: 1px solid rgba(42,24,17,.1); background: #f9f3ea; }
 .admin-menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
@@ -210,6 +222,20 @@ i.available { background: #edf5ef; border: 1px solid #214734; } i.reserved { bac
 /* Modal & Toast */
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(31,20,15,.4); backdrop-filter: blur(8px); display: grid; place-items: center; }
 .login-panel { width: min(420px, 100%); padding: 34px; border-radius: 24px; background: #fffdfa; box-shadow: var(--shadow-lg); position: relative; }
+.admin-crud-backdrop { padding: 22px; overflow-y: auto; align-items: start; }
+.crud-modal-panel { width: min(760px, 100%); margin: 32px auto; background: #fffdfa; border: 1px solid var(--line); border-radius: 26px; box-shadow: var(--shadow-lg); overflow: hidden; }
+.crud-modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 24px 26px 18px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #fffdfa, #f9f3ea); }
+.crud-modal-header h2 { margin: 0 0 4px; font-size: 1.9rem; color: var(--espresso); }
+.crud-modal-header p { margin: 0; color: var(--muted); font-size: .92rem; }
+.crud-modal-close { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; background: rgba(42,24,17,.06); color: var(--espresso); }
+.crud-modal-body { padding: 24px 26px 26px; }
+.crud-modal-actions { display: flex; justify-content: flex-end; gap: 10px; grid-column: 1 / -1; padding-top: 6px; }
+.admin-toolbar { display: flex; justify-content: space-between; gap: 14px; align-items: center; flex-wrap: wrap; }
+.admin-toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.image-upload-box { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(180px, 230px) 1fr; gap: 16px; align-items: center; padding: 14px; border: 1px dashed rgba(42,24,17,.22); border-radius: 18px; background: #fbf7f1; }
+.image-upload-preview { width: 100%; min-height: 150px; border-radius: 16px; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; }
+.image-upload-preview img { width: 100%; height: 150px; object-fit: contain; padding: 10px; }
+.file-note { display: block; margin-top: 8px; color: var(--muted); font-size: .78rem; font-weight: 700; word-break: break-word; }
 .toast { position: fixed; right: 24px; bottom: 24px; z-index: 110; padding: 18px; border-radius: 16px; background: #1f140f; color: #fff; display: flex; gap: 16px; box-shadow: var(--shadow-md); }
 .toast.success { background: #214734; } .toast.error { background: #8c2515; }
 
@@ -285,77 +311,286 @@ const buatExcel = (namaFile, rows) => {
   link.href = url; link.download = namaFile.endsWith('.xls') ? namaFile : `${namaFile}.xls`; link.click();
   URL.revokeObjectURL(url);
 };
-const cetakPdf = (judul, rows) => {
-  const data = rowsDariObjek(rows);
-  const head = data[0] || [];
-  const body = data.slice(1);
-  const html = `<!doctype html><html><head><title>${judul}</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#221711}h1{font-size:24px;margin:0 0 8px}p{margin:0 0 18px;color:#67584e}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top}th{background:#f6efe6}@media print{button{display:none}}</style></head><body><button onclick="window.print()">Cetak PDF</button><h1>${judul}</h1><p>BrewVibe Admin Report</p><table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body.map(row => `<tr>${row.map(cell => `<td>${String(cell ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`;
-  const win = window.open('', '_blank');
-  if (win) { win.document.write(html); win.document.close(); }
+const APP_BRAND = 'Dika Coffe Shop';
+
+const bersihkanTeksPdf = (value) => String(value ?? '-')
+  .replace(/\r?\n/g, ' ')
+  .replace(/→/g, '->')
+  .replace(/[–—]/g, '-')
+  .replace(/[“”]/g, '"')
+  .replace(/[‘’]/g, "'")
+  .replace(/[^\x20-\x7E]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const escapePdf = (value) => bersihkanTeksPdf(value)
+  .replace(/\\/g, '\\\\')
+  .replace(/\(/g, '\\(')
+  .replace(/\)/g, '\\)');
+
+const namaFileAman = (judul) => `${bersihkanTeksPdf(judul).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'laporan'}.pdf`;
+
+const wrapPdfText = (value, maxChars) => {
+  const text = bersihkanTeksPdf(value);
+  if (!text) return ['-'];
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  words.forEach(word => {
+    if (word.length > maxChars) {
+      if (line) { lines.push(line); line = ''; }
+      for (let i = 0; i < word.length; i += maxChars) lines.push(word.slice(i, i + maxChars));
+      return;
+    }
+    const next = line ? `${line} ${word}` : word;
+    if (next.length > maxChars && line) { lines.push(line); line = word; }
+    else line = next;
+  });
+  if (line) lines.push(line);
+  return lines.slice(0, 5);
 };
+
+const buatPdfLaporan = (judul, sections) => {
+  const pageWidth = 842;
+  const pageHeight = 595;
+  const margin = 30;
+  const usableWidth = pageWidth - margin * 2;
+  const bottomLimit = 38;
+  const now = new Date();
+  const generatedAt = now.toLocaleString('id-ID');
+  let pages = [];
+  let content = '';
+  let y = 0;
+  let currentPage = 0;
+
+  const line = (x1, y1, x2, y2) => { content += `0.75 0.70 0.64 RG ${x1} ${y1} m ${x2} ${y2} l S\n`; };
+  const rect = (x, yRect, w, h, fill = null) => {
+    if (fill) content += `${fill} ${x} ${yRect} ${w} ${h} re f\n`;
+    content += `0.82 0.76 0.68 RG ${x} ${yRect} ${w} ${h} re S\n`;
+  };
+  const text = (x, yText, value, size = 8, bold = false) => {
+    content += `0.13 0.09 0.07 rg BT /${bold ? 'F2' : 'F1'} ${size} Tf ${x} ${yText} Td (${escapePdf(value)}) Tj ET\n`;
+  };
+  const mutedText = (x, yText, value, size = 8) => {
+    content += `0.40 0.35 0.30 rg BT /F1 ${size} Tf ${x} ${yText} Td (${escapePdf(value)}) Tj ET\n`;
+  };
+  const caramelText = (x, yText, value, size = 8, bold = true) => {
+    content += `0.55 0.40 0.25 rg BT /${bold ? 'F2' : 'F1'} ${size} Tf ${x} ${yText} Td (${escapePdf(value)}) Tj ET\n`;
+  };
+
+  const newPage = () => {
+    if (content) pages.push(content);
+    currentPage += 1;
+    content = '';
+    y = pageHeight - margin;
+    text(margin, y, APP_BRAND, 18, true);
+    caramelText(pageWidth - margin - 112, y + 1, 'ADMIN REPORT', 9, true);
+    y -= 20;
+    text(margin, y, judul, 13, true);
+    mutedText(margin, y - 14, `Dibuat: ${generatedAt}`);
+    mutedText(pageWidth - margin - 74, y - 14, `Halaman ${currentPage}`);
+    line(margin, y - 24, pageWidth - margin, y - 24);
+    y -= 46;
+  };
+
+  const ensureSpace = (needed) => { if (y - needed < bottomLimit) newPage(); };
+
+  const drawTable = (sectionTitle, rows) => {
+    const dataRows = Array.isArray(rows) ? rows : [];
+    const keys = Array.from(new Set(dataRows.flatMap(row => Object.keys(row || {}))));
+    ensureSpace(54);
+    text(margin, y, sectionTitle, 12, true);
+    mutedText(margin, y - 13, `${dataRows.length} baris data dari database`);
+    y -= 26;
+
+    if (!dataRows.length || !keys.length) {
+      rect(margin, y - 24, usableWidth, 24, '0.98 0.96 0.93 rg');
+      mutedText(margin + 8, y - 15, 'Belum ada data.');
+      y -= 38;
+      return;
+    }
+
+    const fontSize = keys.length > 8 ? 6 : keys.length > 5 ? 6.8 : 7.4;
+    const headerSize = Math.max(5.8, fontSize - 0.1);
+    const colWidth = usableWidth / keys.length;
+    const maxChars = Math.max(7, Math.floor(colWidth / (fontSize * 0.52)));
+
+    const drawHeader = () => {
+      ensureSpace(28);
+      rect(margin, y - 24, usableWidth, 24, '0.96 0.92 0.86 rg');
+      keys.forEach((key, index) => {
+        const x = margin + index * colWidth;
+        if (index > 0) line(x, y, x, y - 24);
+        const label = wrapPdfText(labelKolom(key).toUpperCase(), maxChars)[0] || labelKolom(key).toUpperCase();
+        text(x + 4, y - 15, label, headerSize, true);
+      });
+      y -= 24;
+    };
+
+    drawHeader();
+    dataRows.forEach((row, rowIndex) => {
+      const lineSets = keys.map(key => wrapPdfText(row?.[key], maxChars));
+      const lineCount = Math.max(1, ...lineSets.map(lines => lines.length));
+      const rowHeight = Math.max(22, 9 + lineCount * (fontSize + 2));
+      if (y - rowHeight < bottomLimit) {
+        newPage();
+        text(margin, y, `${sectionTitle} (lanjutan)`, 11, true);
+        y -= 20;
+        drawHeader();
+      }
+      rect(margin, y - rowHeight, usableWidth, rowHeight, rowIndex % 2 === 0 ? '1 1 1 rg' : '0.99 0.98 0.96 rg');
+      keys.forEach((key, index) => {
+        const x = margin + index * colWidth;
+        if (index > 0) line(x, y, x, y - rowHeight);
+        lineSets[index].forEach((lineValue, lineIndex) => {
+          mutedText(x + 4, y - 13 - lineIndex * (fontSize + 2), lineValue, fontSize);
+        });
+      });
+      y -= rowHeight;
+    });
+    y -= 18;
+  };
+
+  newPage();
+  const normalizedSections = Array.isArray(sections?.[0]) ? sections : [[judul, sections]];
+  normalizedSections.forEach(([sectionTitle, rows]) => drawTable(sectionTitle, rows || []));
+  if (content) pages.push(content);
+
+  const objects = [];
+  const addObject = (body) => { objects.push(body); return objects.length; };
+  addObject('<< /Type /Catalog /Pages 2 0 R >>');
+  addObject('');
+  addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  const pageIds = [];
+  pages.forEach(pageContent => {
+    const pageId = objects.length + 1;
+    const contentId = objects.length + 2;
+    pageIds.push(pageId);
+    addObject(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`);
+    addObject(`<< /Length ${pageContent.length} >>\nstream\n${pageContent}endstream`);
+  });
+  objects[1] = `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((body, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= objects.length; i += 1) pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  const blob = new Blob([pdf], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = namaFileAman(judul);
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const cetakPdf = (judul, rows) => buatPdfLaporan(judul, [[judul, rows]]);
 
 // ==========================================
 // 3. REST API SERVICES
 // ==========================================
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8081/api').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:8081/api').replace(/\/$/, '');
+const API_ORIGIN = API_URL.replace(/\/api$/, '');
+const assetUrl = (url) => {
+  if (!url) return '/images/produk-utama.png';
+  if (String(url).startsWith('/uploads/')) return `${API_ORIGIN}${url}`;
+  return url;
+};
 
 async function api(path, options = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options as any).headers },
-    ...options,
-  } as any);
+  const requestOptions = options as any;
+  const method = (requestOptions.method || 'GET').toUpperCase();
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), requestOptions.timeout || 15000);
 
-  if (!response.ok) {
-    let message = 'Terjadi kesalahan koneksi API.';
-    try {
-      const error = await response.json();
-      message = error.message || error.error || message;
-    } catch (_) {
-      message = await response.text() || message;
+  try {
+    const response = await fetch(`${API_URL}${path}`, {
+      headers: { 'Content-Type': 'application/json', ...(requestOptions.headers || {}) },
+      ...requestOptions,
+      signal: controller.signal,
+    } as any);
+
+    if (!response.ok) {
+      let message = 'Terjadi kesalahan koneksi API.';
+      try {
+        const error = await response.json();
+        message = error.message || error.error || message;
+      } catch (_) {
+        message = await response.text() || message;
+      }
+      throw new Error(message);
     }
-    throw new Error(message);
-  }
 
-  if (response.status === 204) return null;
-  return response.json();
+    if (response.status === 204) return null;
+    return response.json();
+  } catch (error) {
+    // GET boleh dicoba ulang sekali agar aplikasi lebih stabil saat backend baru bangun dari idle.
+    if (method === 'GET' && !requestOptions.__retried) {
+      await new Promise(resolve => window.setTimeout(resolve, 700));
+      return api(path, { ...requestOptions, __retried: true });
+    }
+    if ((error as any).name === 'AbortError') throw new Error('Koneksi ke server terlalu lama. Coba muat ulang.');
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const currentTime = () => new Date().toTimeString().slice(0, 5);
 
 function useRealtime(refresh) {
+  const refreshRef = useRef(refresh);
+
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
+
   useEffect(() => {
     let source = null;
-    const run = () => refresh?.();
-    const interval = window.setInterval(run, 5000);
-    window.addEventListener('brewvibe-refresh', run);
+    const run = () => refreshRef.current?.();
+    const interval = window.setInterval(run, 15000);
+    window.addEventListener('dikacoffeshop-refresh', run);
 
     try {
       source = new EventSource(`${API_URL}/realtime/stream`);
-      source.addEventListener('brewvibe-update', run);
+      source.addEventListener('dikacoffeshop-update', run);
       source.onmessage = run;
+      source.onerror = () => {
+        source?.close();
+        source = null;
+      };
     } catch (_) {
       source = null;
     }
 
     return () => {
       window.clearInterval(interval);
-      window.removeEventListener('brewvibe-refresh', run);
+      window.removeEventListener('dikacoffeshop-refresh', run);
       if (source) source.close();
     };
-  }, [refresh]);
+  }, []);
 }
 
 const mockApi = {
   ambilMenuPublik: async () => api('/menu'),
   ambilPromoPublik: async () => api('/promos'),
-  ambilMejaTersedia: async ({ area, floor, reservationDate, reservationTime, guestCount }) => {
+  ambilMejaTersedia: async ({ area, floor, reservationDate, reservationTime, guestCount, durationMinutes }) => {
     const params = new URLSearchParams({
       date: reservationDate || todayIso(),
       time: reservationTime || '19:00',
       guests: String(guestCount || 1),
       area: area || '',
       floor: floor || '',
+      durationMinutes: String(durationMinutes || 120),
     });
     return api(`/tables?${params.toString()}`);
   },
@@ -370,6 +605,7 @@ const mockApi = {
       guestName: data.guestName,
       phone: data.phone,
       specialRequest: data.specialRequest || '',
+      durationMinutes: Number(data.durationMinutes || 120),
     }),
   }),
   buatPesanan: async (data) => api('/orders', {
@@ -380,6 +616,22 @@ const mockApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+  uploadGambarMenuAdmin: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_URL}/admin/menu/upload`, { method: 'POST', body: formData });
+    if (!response.ok) {
+      let message = 'Upload gambar gagal.';
+      try {
+        const error = await response.json();
+        message = error.message || error.error || message;
+      } catch (_) {
+        message = await response.text() || message;
+      }
+      throw new Error(message);
+    }
+    return response.json();
+  },
   ambilDataAdmin: async () => {
     const [dashboard, reservasi, pesanan, meja, menu, promos, laporan, employees] = await Promise.all([
       api('/admin/dashboard'),
@@ -393,11 +645,13 @@ const mockApi = {
     ]);
     return { dashboard, reservasi, pesanan, meja, menu, promos, laporan, employees };
   },
-  ambilDataPegawai: async () => {
-    // Data pegawai dibuat saling aman. Jika salah satu endpoint bermasalah, halaman tetap tampil.
+  ambilDataPegawai: async (employeeName = '') => {
+    // Data pegawai mengikuti shift otomatis. Pegawai hanya melihat reservasi yang masuk ke shift/nama pegawai tersebut.
+    const employeeParam = employeeName ? `&employeeName=${encodeURIComponent(employeeName)}` : '';
+    const orderParam = employeeName ? `?employeeName=${encodeURIComponent(employeeName)}` : '';
     const [reservasiResult, pesananResult, mejaResult] = await Promise.allSettled([
-      api(`/employee/reservations?date=${todayIso()}`),
-      api('/employee/orders/today'),
+      api(`/employee/reservations?date=${todayIso()}${employeeParam}`),
+      api(`/employee/orders/today${orderParam}`),
       api(`/tables?date=${todayIso()}&time=${currentTime()}&guests=1&area=&floor=`),
     ]);
     const errors = [reservasiResult, pesananResult, mejaResult]
@@ -411,23 +665,19 @@ const mockApi = {
       errors,
     };
   },
-  ubahStatusReservasiPegawai: async (id, status, actorName = 'Pegawai BrewVibe', reason = '') => api(`/employee/reservations/${id}/status`, {
+  ubahStatusReservasiPegawai: async (id, status, actorName = 'Pegawai Dika Coffe Shop', reason = '') => api(`/employee/reservations/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status, actorName, reason }),
   }),
-  ubahStatusPesananPegawai: async (id, status, actorName = 'Pegawai BrewVibe') => api(`/employee/orders/${id}/status`, {
+  ubahStatusPesananPegawai: async (id, status, actorName = 'Pegawai Dika Coffe Shop') => api(`/employee/orders/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status, actorName }),
   }),
-  ubahStatusReservasiAdmin: async (id, status, actorName = 'Admin BrewVibe', reason = '') => api(`/admin/reservations/${id}/status`, {
+  ubahStatusReservasiAdmin: async (id, status, actorName = 'Admin Dika Coffe Shop', reason = '') => api(`/admin/reservations/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status, actorName, reason }),
   }),
-  assignReservasiAdmin: async (id, employeeName) => api(`/admin/reservations/${id}/assign`, {
-    method: 'PUT',
-    body: JSON.stringify({ employeeName }),
-  }),
-  ubahStatusPesananAdmin: async (id, status, actorName = 'Admin BrewVibe') => api(`/admin/orders/${id}/status`, {
+  ubahStatusPesananAdmin: async (id, status, actorName = 'Admin Dika Coffe Shop') => api(`/admin/orders/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status, actorName }),
   }),
@@ -481,6 +731,24 @@ function Kosong({ judul, deskripsi, ringkas = false }) {
 function StatusLabel({ nilai }) {
   const kelas = String(nilai || '').toLowerCase();
   return <span className={`status-pill ${kelas}`}>{nilai || '-'}</span>;
+}
+
+function AdminFormModal({ terbuka, judul, deskripsi, tutup, children }) {
+  if (!terbuka) return null;
+  return (
+    <div className="modal-backdrop admin-crud-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) tutup?.(); }}>
+      <motion.div className="crud-modal-panel" initial={{ opacity: 0, y: 20, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: .98 }}>
+        <div className="crud-modal-header">
+          <div>
+            <h2>{judul}</h2>
+            <p>{deskripsi}</p>
+          </div>
+          <button className="crud-modal-close" type="button" onClick={tutup} aria-label="Tutup form"><X size={20}/></button>
+        </div>
+        <div className="crud-modal-body">{children}</div>
+      </motion.div>
+    </div>
+  );
 }
 
 function TabelData({ judul, kolom, baris }) {
@@ -546,9 +814,9 @@ function LayoutInternal({ jenis, tabAktif, setTabAktif, tabs, judul, deskripsi, 
     <div className="ruang-internal">
       <aside className="sidebar-internal">
         <div className="logo-internal">
-          <span>B</span>
+          <span>D</span>
           <div>
-            <b style={{ fontSize: '1.2rem', display: 'block' }}>BrewVibe</b>
+            <b style={{ fontSize: '1.2rem', display: 'block' }}>Dika Coffe Shop</b>
             <small style={{ color: 'rgba(255,255,255,.5)' }}>{admin ? 'Ruang Admin' : 'Ruang Pegawai'}</small>
           </div>
         </div>
@@ -592,7 +860,7 @@ function HeaderUtama({ ubahHalaman, bukaLogin, user, keluar }) {
   return (
     <header className="site-header">
       <button className="brand" onClick={() => ubahHalaman('home')}>
-        <span>B</span><strong>BrewVibe</strong>
+        <span>D</span><strong>Dika Coffe Shop</strong>
       </button>
       <nav className="desktop-nav" style={{ display: 'flex', gap: '8px' }}>
         {navigasi.map(([key, label]) => (
@@ -621,7 +889,7 @@ function FooterProfesional({ bukaLogin }) {
   return (
     <footer className="footer-pro">
       <div>
-        <h2>BrewVibe</h2>
+        <h2>Dika Coffe Shop</h2>
         <p style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>Sistem reservasi digital untuk mengelola meja, pesanan, promo, dan operasional coffee shop.</p>
       </div>
       <div>
@@ -636,9 +904,9 @@ function FooterProfesional({ bukaLogin }) {
       </div>
       <div>
         <h3>Kontak</h3>
-        <p style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>Jl. Aroma Kopi No. 21<br />Buka 09.00 - 22.00<br />support@brewvibe.id</p>
+        <p style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>Jl. Aroma Kopi No. 21<br />Buka 09.00 - 22.00<br />support@dikacoffeshop.id</p>
       </div>
-      <small>© 2026 BrewVibe Coffee Reservation System.</small>
+      <small>© 2026 Dika Coffe Shop Coffee Reservation System.</small>
     </footer>
   );
 }
@@ -646,15 +914,19 @@ function FooterProfesional({ bukaLogin }) {
 // ==========================================
 // 6. PAGES
 // ==========================================
-function LoginInternal({ mode, tutup, sukses, beriNotifikasi }) {
+function LoginInternal({ mode, tutup, sukses, beriNotifikasi, wajib = false, ubahMode }) {
   const akunDemo = {
-    customer: { email: 'customer@brewvibe.id', password: 'customer123', role: 'CUSTOMER', label: 'Login Customer' },
-    admin: { email: 'admin@brewvibe.id', password: 'admin123', role: 'ADMIN', label: 'Login Admin' },
-    pegawai: { email: 'pegawai@brewvibe.id', password: 'pegawai123', role: 'PEGAWAI', label: 'Login Pegawai' },
+    customer: { email: 'customer@dikacoffeshop.id', password: 'customer123', role: 'CUSTOMER', label: 'Login Customer' },
+    admin: { email: 'admin@dikacoffeshop.id', password: 'admin123', role: 'ADMIN', label: 'Login Admin' },
+    pegawai: { email: 'pegawai@dikacoffeshop.id', password: 'pegawai123', role: 'PEGAWAI', label: 'Login Pegawai' },
   };
   const preset = akunDemo[mode] || akunDemo.customer;
   const [form, setForm] = useState({ email: preset.email, password: preset.password });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setForm({ email: preset.email, password: preset.password });
+  }, [mode]);
 
   const masuk = async (e) => {
     e.preventDefault();
@@ -674,9 +946,25 @@ function LoginInternal({ mode, tutup, sukses, beriNotifikasi }) {
   return (
     <div className="modal-backdrop">
       <form className="login-panel" onSubmit={masuk}>
-        <button type="button" onClick={tutup} style={{ position: 'absolute', right: '20px', top: '20px', fontSize: '1.2rem' }}>×</button>
+        {!wajib && <button type="button" onClick={tutup} style={{ position: 'absolute', right: '20px', top: '20px', fontSize: '1.2rem' }}>×</button>}
         <span className="eyebrow">Akses Pengguna</span>
-        <h2 style={{ margin: '10px 0 20px', fontSize: '2rem', color: 'var(--espresso)' }}>{preset.label}</h2>
+        <h2 style={{ margin: '10px 0 10px', fontSize: '2rem', color: 'var(--espresso)' }}>{preset.label}</h2>
+        {wajib && <p style={{ margin: '0 0 18px', color: 'var(--muted)', lineHeight: 1.5 }}>Silakan login terlebih dahulu. Customer, Admin, dan Pegawai tetap memakai akses masing-masing.</p>}
+        {ubahMode && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '20px' }}>
+            {[['customer','Customer'], ['pegawai','Pegawai'], ['admin','Admin']].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => ubahMode(key)}
+                className={mode === key ? 'dark' : 'ghost'}
+                style={{ padding: '10px', borderRadius: '12px', fontWeight: 800 }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Email</label>
@@ -707,7 +995,7 @@ function BerandaPelanggan({ ubahHalaman, menu }) {
       <div className="interactive-hero-shell" style={{ '--warna-produk': produkAktif.warna, '--warna-produk-gelap': produkAktif.warnaGelap }}>
         <div className="interactive-product-layout">
           <div className="interactive-product-copy">
-            <span className="landing-eyebrow">BrewVibe System</span>
+            <span className="landing-eyebrow">Dika Coffe Shop System</span>
             <AnimatePresence mode="wait">
               <motion.div key={produkAktif.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
                 <h1>{produkAktif.judul} <br/><span>{produkAktif.subjudul}</span></h1>
@@ -796,14 +1084,14 @@ function PromoPelanggan({ promos }) {
 function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriNotifikasi }) {
   const [langkah, setLangkah] = useState(1);
   const [daftarMeja, setDaftarMeja] = useState([]);
-  const [form, setForm] = useState({ reservationDate: tanggalHariIni, reservationTime: '19:00', guestCount: 2, floor: 'Semua', area: 'Semua', tableCode: '', guestName: '', phone: '', specialRequest: '' });
+  const [form, setForm] = useState({ reservationDate: tanggalHariIni, reservationTime: '19:00', durationMinutes: 120, guestCount: 2, floor: 'Semua', area: 'Semua', tableCode: '', guestName: '', phone: '', specialRequest: '' });
   const [loading, setLoading] = useState(false);
 
   const muatMeja = () => {
     mockApi.ambilMejaTersedia(form).then(setDaftarMeja).catch(e => beriNotifikasi('Koneksi API gagal', e.message, 'error'));
   };
 
-  useEffect(() => { muatMeja(); }, [form.area, form.floor, form.reservationDate, form.reservationTime, form.guestCount]);
+  useEffect(() => { muatMeja(); }, [form.area, form.floor, form.reservationDate, form.reservationTime, form.durationMinutes, form.guestCount]);
   useRealtime(muatMeja);
 
   const mejaTerpilih = useMemo(() => daftarMeja.find(meja => meja.code === form.tableCode), [daftarMeja, form.tableCode]);
@@ -822,7 +1110,7 @@ function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriNotifikasi }) {
       setReservasiAktif(res);
       setLangkah(1);
       beriNotifikasi('Reservasi berhasil', `Kode: ${res.code}. Data masuk ke admin dan pegawai secara realtime.`, 'success');
-      window.dispatchEvent(new Event('brewvibe-refresh'));
+      window.dispatchEvent(new Event('dikacoffeshop-refresh'));
     } catch (e) {
       beriNotifikasi('Gagal', e.message, 'error');
     } finally {
@@ -836,7 +1124,7 @@ function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriNotifikasi }) {
       const res = await mockApi.batalReservasiCustomer(reservasiAktif.id, reservasiAktif.phone, 'Dibatalkan melalui halaman customer');
       setReservasiAktif(res);
       await muatMeja();
-      window.dispatchEvent(new Event('brewvibe-refresh'));
+      window.dispatchEvent(new Event('dikacoffeshop-refresh'));
       beriNotifikasi('Reservasi dibatalkan', 'Meja kembali tersedia dan admin/pegawai langsung melihat status CANCELLED.', 'success');
     } catch (e) {
       beriNotifikasi('Gagal batal reservasi', e.message, 'error');
@@ -860,7 +1148,8 @@ function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriNotifikasi }) {
           <div className="form-grid minimal">
             <label>Tanggal <input type="date" value={form.reservationDate} onChange={e => setForm({...form, reservationDate: e.target.value})} /></label>
             <label>Jam <input type="time" value={form.reservationTime} onChange={e => setForm({...form, reservationTime: e.target.value})} /></label>
-            <label>Jumlah Tamu <input type="number" min="1" value={form.guestCount} onChange={e => setForm({...form, guestCount: e.target.value})} /></label>
+            <label>Jumlah Tamu <input type="number" min="1" value={form.guestCount} onChange={e => setForm({...form, guestCount: e.target.value, tableCode: ''})} /></label>
+            <label>Durasi <select value={form.durationMinutes} onChange={e => setForm({...form, durationMinutes: Number(e.target.value), tableCode: ''})}><option value={120}>2 jam</option><option value={180}>3 jam</option><option value={240}>4 jam</option></select></label>
             <label>Lantai <select value={form.floor} onChange={e => setForm({...form, floor: e.target.value, tableCode: ''})}><option>Semua</option><option>Lantai 1</option><option>Lantai 2</option></select></label>
             <label>Area <select value={form.area} onChange={e => setForm({...form, area: e.target.value, tableCode: ''})}><option>Semua</option><option>Indoor</option><option>Outdoor</option><option>Meeting Room</option></select></label>
             <label className="full">Preferensi <input value={`${form.floor} • ${form.area}`} readOnly /></label>
@@ -900,6 +1189,7 @@ function ReservasiMeja({ reservasiAktif, setReservasiAktif, beriNotifikasi }) {
         {langkah === 4 && (
           <div style={{ display: 'grid', gap: '12px' }}>
             <p>Tanggal: <b>{form.reservationDate} {form.reservationTime}</b></p>
+            <p>Durasi: <b>{Number(form.durationMinutes || 120) / 60} jam</b></p>
             <p>Meja: <b>{form.tableCode} ({mejaTerpilih?.floor || form.floor} • {mejaTerpilih?.area || form.area})</b></p>
             <p>Nama: <b>{form.guestName}</b></p>
           </div>
@@ -943,7 +1233,7 @@ function MenuKeranjang({ menu, reservasiAktif, ubahHalaman, beriNotifikasi }) {
       const res = await mockApi.buatPesanan({ reservationCode: reservasiAktif.code, items: keranjang.map(i => ({menuItemId: i.id, quantity: i.qty})) });
       setHasilPesanan(res); setKeranjang([]);
       beriNotifikasi('Sukses', `Pesanan ${res.code} berhasil dibuat`, 'success');
-      window.dispatchEvent(new Event('brewvibe-refresh'));
+      window.dispatchEvent(new Event('dikacoffeshop-refresh'));
     } catch(e) {
       beriNotifikasi('Gagal membuat pesanan', e.message, 'error');
     }
@@ -959,7 +1249,7 @@ function MenuKeranjang({ menu, reservasiAktif, ubahHalaman, beriNotifikasi }) {
         <div className="menu-list-clean">
           {menu.map(item => (
             <div className="menu-row" key={item.id}>
-              <img src={item.imageUrl} alt={item.name} />
+              <img src={assetUrl(item.imageUrl)} alt={item.name} />
               <div>
                 <span>{item.category}</span>
                 <h3 style={{ margin: '4px 0 8px' }}>{item.name}</h3>
@@ -1010,7 +1300,7 @@ function TabelLaporan({ judul, rows }) {
           <p style={{ margin: 0, color: 'var(--muted)', fontSize: '.9rem' }}>{dataRows.length} baris data dari database.</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button className="secondary" onClick={() => cetakPdf(judul, dataRows)} style={{ minHeight: '38px', padding: '8px 12px' }}>Cetak PDF</button>
+          <button className="secondary" onClick={() => cetakPdf(judul, dataRows)} style={{ minHeight: '38px', padding: '8px 12px' }}>Download PDF</button>
           <button className="primary" onClick={() => buatExcel(`${judul.toLowerCase().replaceAll(' ', '-')}.xls`, dataRows)} style={{ minHeight: '38px', padding: '8px 12px' }}>Export Excel</button>
         </div>
       </div>
@@ -1052,8 +1342,8 @@ function LaporanAdmin({ laporan }) {
             <p style={{ margin: 0, color: 'var(--muted)' }}>Admin dapat mencetak PDF dan export Excel untuk laporan reservasi, shift pegawai, keuangan, meja, customer, pembatalan, no-show, timeline flow, promo, menu, maintenance, dan audit log.</p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="secondary" onClick={() => cetakPdf('Semua Laporan BrewVibe', allRows)}>Cetak Semua PDF</button>
-            <button className="primary" onClick={() => buatExcel('semua-laporan-brewvibe.xls', allRows)}>Export Semua Excel</button>
+            <button className="secondary" onClick={() => buatPdfLaporan('Semua Laporan Dika Coffe Shop', sections)}>Download Semua PDF</button>
+            <button className="primary" onClick={() => buatExcel('semua-laporan-dikacoffeshop.xls', allRows)}>Export Semua Excel</button>
           </div>
         </div>
       </div>
@@ -1068,65 +1358,83 @@ function RuangAdmin({ keluar, beriNotifikasi }) {
   const [formMeja, setFormMeja] = useState({ id: null, code: '', floor: 'Lantai 1', area: 'Indoor', capacity: 4, physicalStatus: 'AVAILABLE' });
   const [formMenu, setFormMenu] = useState({ id: null, name: '', category: 'Coffee', description: '', price: 30000, available: true, imageUrl: '/images/produk-utama.png' });
   const [formPromo, setFormPromo] = useState({ id: null, title: '', description: '', badge: 'Promo', active: true, startDate: '', endDate: '' });
-  const actorName = 'Admin BrewVibe';
+  const [modalAktif, setModalAktif] = useState(null);
+  const [detailPanel, setDetailPanel] = useState(null);
+  const [sedangUploadGambar, setSedangUploadGambar] = useState(false);
+  const actorName = 'Admin Dika Coffe Shop';
   
   const muatData = () => mockApi.ambilDataAdmin().then(setData).catch(e => beriNotifikasi('Error', e.message, 'error'));
   useEffect(() => { muatData(); }, []);
   useRealtime(muatData);
 
   const resetFormMeja = () => setFormMeja({ id: null, code: '', floor: 'Lantai 1', area: 'Indoor', capacity: 4, physicalStatus: 'AVAILABLE' });
-  const editMeja = (meja) => setFormMeja({ id: meja.id, code: meja.code, floor: meja.floor, area: meja.area, capacity: meja.capacity, physicalStatus: meja.physicalStatus || 'AVAILABLE' });
+  const bukaTambahMeja = () => { resetFormMeja(); setModalAktif('meja'); };
+  const editMeja = (meja) => { setFormMeja({ id: meja.id, code: meja.code, floor: meja.floor, area: meja.area, capacity: meja.capacity, physicalStatus: meja.physicalStatus || 'AVAILABLE' }); setModalAktif('meja'); };
   const simpanMeja = async (e) => {
     e.preventDefault();
     try {
       await mockApi.simpanMejaAdmin(formMeja);
-      resetFormMeja(); await muatData(); window.dispatchEvent(new Event('brewvibe-refresh'));
+      resetFormMeja(); setModalAktif(null); await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh'));
       beriNotifikasi('Sukses', 'Data meja berhasil disimpan.', 'success');
     } catch (error) { beriNotifikasi('Gagal menyimpan meja', error.message, 'error'); }
   };
   const hapusMeja = async (meja) => {
     if (!confirm(`Hapus meja ${meja.code}?`)) return;
-    try { await mockApi.hapusMejaAdmin(meja.id); await muatData(); window.dispatchEvent(new Event('brewvibe-refresh')); beriNotifikasi('Sukses', `Meja ${meja.code} berhasil dihapus.`, 'success'); }
+    try { await mockApi.hapusMejaAdmin(meja.id); await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh')); beriNotifikasi('Sukses', `Meja ${meja.code} berhasil dihapus.`, 'success'); }
     catch (error) { beriNotifikasi('Gagal menghapus meja', error.message, 'error'); }
   };
 
   const resetFormMenu = () => setFormMenu({ id: null, name: '', category: 'Coffee', description: '', price: 30000, available: true, imageUrl: '/images/produk-utama.png' });
-  const editMenu = (menu) => setFormMenu({ id: menu.id, name: menu.name, category: menu.category, description: menu.description, price: Number(menu.price || 0), available: menu.available, imageUrl: menu.imageUrl || '/images/produk-utama.png' });
+  const bukaTambahMenu = () => { resetFormMenu(); setModalAktif('menu'); };
+  const editMenu = (menu) => { setFormMenu({ id: menu.id, name: menu.name, category: menu.category, description: menu.description, price: Number(menu.price || 0), available: menu.available, imageUrl: menu.imageUrl || '/images/produk-utama.png' }); setModalAktif('menu'); };
+  const handleGambarMenu = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { beriNotifikasi('File tidak valid', 'Pilih file gambar JPG, PNG, WEBP, atau GIF.', 'error'); return; }
+    if (file.size > 2 * 1024 * 1024) { beriNotifikasi('File terlalu besar', 'Ukuran gambar maksimal 2 MB.', 'error'); return; }
+    try {
+      setSedangUploadGambar(true);
+      const hasil = await mockApi.uploadGambarMenuAdmin(file);
+      setFormMenu(prev => ({ ...prev, imageUrl: hasil.imageUrl || '/images/produk-utama.png' }));
+      beriNotifikasi('Upload berhasil', 'Gambar menu sudah tersimpan di server.', 'success');
+    } catch (error) {
+      beriNotifikasi('Upload gambar gagal', error.message, 'error');
+    } finally {
+      setSedangUploadGambar(false);
+    }
+  };
   const simpanMenu = async (e) => {
     e.preventDefault();
-    try { await mockApi.simpanMenuAdmin(formMenu); resetFormMenu(); await muatData(); window.dispatchEvent(new Event('brewvibe-refresh')); beriNotifikasi('Sukses', 'Data menu berhasil disimpan.', 'success'); }
+    try { await mockApi.simpanMenuAdmin(formMenu); resetFormMenu(); setModalAktif(null); await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh')); beriNotifikasi('Sukses', 'Data menu berhasil disimpan.', 'success'); }
     catch (error) { beriNotifikasi('Gagal menyimpan menu', error.message, 'error'); }
   };
   const hapusMenu = async (menu) => {
     if (!confirm(`Hapus menu ${menu.name}?`)) return;
-    try { await mockApi.hapusMenuAdmin(menu.id); await muatData(); window.dispatchEvent(new Event('brewvibe-refresh')); beriNotifikasi('Sukses', 'Menu berhasil dihapus.', 'success'); }
+    try { await mockApi.hapusMenuAdmin(menu.id); await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh')); beriNotifikasi('Sukses', 'Menu berhasil dihapus.', 'success'); }
     catch (error) { beriNotifikasi('Gagal menghapus menu', error.message, 'error'); }
   };
 
   const resetFormPromo = () => setFormPromo({ id: null, title: '', description: '', badge: 'Promo', active: true, startDate: '', endDate: '' });
-  const editPromo = (promo) => setFormPromo({ id: promo.id, title: promo.title, description: promo.description, badge: promo.badge || 'Promo', active: promo.active, startDate: promo.startDate || '', endDate: promo.endDate || '' });
+  const bukaTambahPromo = () => { resetFormPromo(); setModalAktif('promo'); };
+  const editPromo = (promo) => { setFormPromo({ id: promo.id, title: promo.title, description: promo.description, badge: promo.badge || 'Promo', active: promo.active, startDate: promo.startDate || '', endDate: promo.endDate || '' }); setModalAktif('promo'); };
   const simpanPromo = async (e) => {
     e.preventDefault();
-    try { await mockApi.simpanPromoAdmin(formPromo); resetFormPromo(); await muatData(); window.dispatchEvent(new Event('brewvibe-refresh')); beriNotifikasi('Sukses', 'Data promo berhasil disimpan.', 'success'); }
+    try { await mockApi.simpanPromoAdmin(formPromo); resetFormPromo(); setModalAktif(null); await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh')); beriNotifikasi('Sukses', 'Data promo berhasil disimpan.', 'success'); }
     catch (error) { beriNotifikasi('Gagal menyimpan promo', error.message, 'error'); }
   };
   const hapusPromo = async (promo) => {
     if (!confirm(`Hapus promo ${promo.title}?`)) return;
-    try { await mockApi.hapusPromoAdmin(promo.id); await muatData(); window.dispatchEvent(new Event('brewvibe-refresh')); beriNotifikasi('Sukses', 'Promo berhasil dihapus.', 'success'); }
+    try { await mockApi.hapusPromoAdmin(promo.id); await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh')); beriNotifikasi('Sukses', 'Promo berhasil dihapus.', 'success'); }
     catch (error) { beriNotifikasi('Gagal menghapus promo', error.message, 'error'); }
   };
 
   const updateReservasi = async (r, status) => {
-    try { await mockApi.ubahStatusReservasiAdmin(r.id, status, actorName); await muatData(); window.dispatchEvent(new Event('brewvibe-refresh')); beriNotifikasi('Sukses', `Reservasi ${r.code} menjadi ${status}`, 'success'); }
+    try { await mockApi.ubahStatusReservasiAdmin(r.id, status, actorName); await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh')); beriNotifikasi('Sukses', `Reservasi ${r.code} menjadi ${status}`, 'success'); }
     catch (error) { beriNotifikasi('Gagal update reservasi', error.message, 'error'); }
   };
-  const assignReservasi = async (r, employeeName) => {
-    if (!employeeName) return;
-    try { await mockApi.assignReservasiAdmin(r.id, employeeName); await muatData(); window.dispatchEvent(new Event('brewvibe-refresh')); beriNotifikasi('Sukses', `Reservasi ${r.code} ditugaskan ke ${employeeName}`, 'success'); }
-    catch (error) { beriNotifikasi('Gagal assign pegawai', error.message, 'error'); }
-  };
+  // Admin tidak assign pegawai manual. Sistem otomatis menentukan pegawai berdasarkan jam reservasi dan jadwal shift.
   const updatePesanan = async (o, status) => {
-    try { await mockApi.ubahStatusPesananAdmin(o.id, status, actorName); await muatData(); window.dispatchEvent(new Event('brewvibe-refresh')); beriNotifikasi('Sukses', `Pesanan ${o.code} menjadi ${status}`, 'success'); }
+    try { await mockApi.ubahStatusPesananAdmin(o.id, status, actorName); await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh')); beriNotifikasi('Sukses', `Pesanan ${o.code} menjadi ${status}`, 'success'); }
     catch (error) { beriNotifikasi('Gagal update pesanan', error.message, 'error'); }
   };
 
@@ -1150,6 +1458,32 @@ function RuangAdmin({ keluar, beriNotifikasi }) {
     NO_SHOW: ['NO_SHOW'],
   }[status] || rsvStatuses);
   const orderStatuses = ['PENDING_PAYMENT', 'PROCESSING', 'READY', 'COMPLETED', 'CANCELLED'];
+  // Admin hanya melihat detail. Update status operasional dilakukan oleh Pegawai sesuai shift.
+  const bukaDetailReservasi = (r) => setDetailPanel({
+    judul: `Detail Reservasi ${r.code}`,
+    deskripsi: 'Admin memantau detail reservasi, sedangkan perubahan status operasional dilakukan di ruang pegawai.',
+    rows: [
+      ['Kode', r.code], ['Tamu', r.guestName], ['Nomor HP', r.phone], ['Tanggal', r.reservationDate],
+      ['Jam', potongJam(r.reservationTime)], ['Meja', r.tableCode], ['Area', r.area], ['Lantai', r.floor],
+      ['Jumlah Tamu', r.guestCount], ['Status', r.status], ['Shift/Pegawai', r.assignedEmployee || 'Belum ada shift aktif'],
+      ['Catatan', r.specialRequest || '-']
+    ]
+  });
+  const bukaDetailPesanan = (o) => setDetailPanel({
+    judul: `Detail Pesanan ${o.code}`,
+    deskripsi: 'Admin memantau data pesanan untuk rekap dan laporan. Proses pesanan dilakukan oleh pegawai.',
+    rows: [
+      ['Kode Pesanan', o.code], ['Kode Reservasi', o.reservationCode], ['Jumlah Item', `${o.items?.length || 0} item`],
+      ['Subtotal', formatRupiah(o.subtotal || 0)], ['Diskon', formatRupiah(o.discount || 0)], ['Total', formatRupiah(o.total || 0)],
+      ['Status', o.status], ['Pegawai', o.handledBy || '-'], ['Promo', o.appliedPromo || '-']
+    ]
+  });
+  const renderAksiReservasi = (r) => (
+    <button className="mini-action detail" onClick={() => bukaDetailReservasi(r)}>Detail</button>
+  );
+  const renderAksiPesanan = (o) => (
+    <button className="mini-action detail" onClick={() => bukaDetailPesanan(o)}>Detail</button>
+  );
 
   return (
     <LayoutInternal jenis="admin" tabAktif={tabAktif} setTabAktif={setTabAktif} tabs={tabs} judul="Admin Dashboard" deskripsi="CRUD, realtime, laporan, dan export data tersambung ke database." catatan={{ judul: 'Workspace', isi: 'Admin Panel API Realtime' }} tombolRefresh={muatData} keluar={keluar}>
@@ -1194,9 +1528,9 @@ function RuangAdmin({ keluar, beriNotifikasi }) {
         <div className="panel-kode-dua panel-full">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
             <h2>Data Reservasi</h2>
-            <div style={{ display: 'flex', gap: '8px' }}><button className="secondary" onClick={() => cetakPdf('Data Reservasi', data.laporan?.reservations || [])}>Cetak PDF</button><button className="primary" onClick={() => buatExcel('data-reservasi.xls', data.laporan?.reservations || [])}>Export Excel</button></div>
+            <div style={{ display: 'flex', gap: '8px' }}><button className="secondary" onClick={() => cetakPdf('Data Reservasi', data.laporan?.reservations || [])}>Download PDF</button><button className="primary" onClick={() => buatExcel('data-reservasi.xls', data.laporan?.reservations || [])}>Export Excel</button></div>
           </div>
-          <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>{['Kode','Tamu','Tanggal','Jam','Meja','Status','Pegawai Ditugaskan','Aksi'].map(h => <th key={h} style={{ padding: '12px', borderBottom: '1px solid var(--line)', textAlign: 'left' }}>{h}</th>)}</tr></thead><tbody>{data.reservasi.map(r => <tr key={r.id}><td style={{ padding: '12px' }}>{r.code}</td><td>{r.guestName}</td><td>{r.reservationDate}</td><td>{potongJam(r.reservationTime)}</td><td>{r.tableCode}</td><td><StatusLabel nilai={r.status}/></td><td><select value={r.assignedEmployee || ''} onChange={e => assignReservasi(r, e.target.value)}><option value="">Pilih pegawai</option>{(data.employees || []).map(emp => <option key={emp.id} value={emp.fullName}>{emp.fullName}</option>)}</select></td><td><select value={r.status} onChange={e => updateReservasi(r, e.target.value)}>{statusOptions(r.status).map(s => <option key={s}>{s}</option>)}</select></td></tr>)}</tbody></table></div>
+          <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>{['Kode','Tamu','Tanggal','Jam','Meja','Status','Shift/Pegawai','Detail'].map(h => <th key={h} style={{ padding: '12px', borderBottom: '1px solid var(--line)', textAlign: 'left' }}>{h}</th>)}</tr></thead><tbody>{data.reservasi.map(r => <tr key={r.id}><td style={{ padding: '12px' }}>{r.code}</td><td>{r.guestName}</td><td>{r.reservationDate}</td><td>{potongJam(r.reservationTime)}</td><td>{r.tableCode}</td><td><StatusLabel nilai={r.status}/></td><td>{r.assignedEmployee || 'Belum ada shift aktif'}</td><td>{renderAksiReservasi(r)}</td></tr>)}</tbody></table></div>
         </div>
       )}
 
@@ -1204,85 +1538,122 @@ function RuangAdmin({ keluar, beriNotifikasi }) {
         <div className="panel-kode-dua panel-full">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
             <h2>Data Pesanan</h2>
-            <div style={{ display: 'flex', gap: '8px' }}><button className="secondary" onClick={() => cetakPdf('Data Pesanan', data.laporan?.orders || [])}>Cetak PDF</button><button className="primary" onClick={() => buatExcel('data-pesanan.xls', data.laporan?.orders || [])}>Export Excel</button></div>
+            <div style={{ display: 'flex', gap: '8px' }}><button className="secondary" onClick={() => cetakPdf('Data Pesanan', data.laporan?.orders || [])}>Download PDF</button><button className="primary" onClick={() => buatExcel('data-pesanan.xls', data.laporan?.orders || [])}>Export Excel</button></div>
           </div>
-          <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>{['Kode','RSV','Customer','Total','Status','Pegawai','Aksi'].map(h => <th key={h} style={{ padding: '12px', borderBottom: '1px solid var(--line)', textAlign: 'left' }}>{h}</th>)}</tr></thead><tbody>{data.pesanan.map(o => <tr key={o.id}><td style={{ padding: '12px' }}>{o.code}</td><td>{o.reservationCode}</td><td>{o.items?.length || 0} item</td><td>{formatRupiah(o.total)}</td><td><StatusLabel nilai={o.status}/></td><td>{o.handledBy || '-'}</td><td><select value={o.status} onChange={e => updatePesanan(o, e.target.value)}>{orderStatuses.map(s => <option key={s}>{s}</option>)}</select></td></tr>)}</tbody></table></div>
+          <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>{['Kode','RSV','Customer','Total','Status','Pegawai','Detail'].map(h => <th key={h} style={{ padding: '12px', borderBottom: '1px solid var(--line)', textAlign: 'left' }}>{h}</th>)}</tr></thead><tbody>{data.pesanan.map(o => <tr key={o.id}><td style={{ padding: '12px' }}>{o.code}</td><td>{o.reservationCode}</td><td>{o.items?.length || 0} item</td><td>{formatRupiah(o.total)}</td><td><StatusLabel nilai={o.status}/></td><td>{o.handledBy || '-'}</td><td>{renderAksiPesanan(o)}</td></tr>)}</tbody></table></div>
         </div>
       )}
 
       {tabAktif === 'meja' && (
         <div className="panel-kode-dua panel-full">
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}><div><h2>Master Meja</h2><p style={{ color: 'var(--muted)', marginTop: 0 }}>Admin mengatur 10 meja reguler dan 3 meeting room dari database.</p></div><div style={{ display: 'flex', gap: '8px' }}><button className="secondary" onClick={() => cetakPdf('Master Meja', data.laporan?.tables || [])}>Cetak PDF</button><button className="primary" onClick={() => buatExcel('master-meja.xls', data.laporan?.tables || [])}>Export Excel</button></div></div>
-          <form className="form-grid minimal" onSubmit={simpanMeja} style={{ marginTop: '16px' }}>
-            <label>Kode <input value={formMeja.code} onChange={e => setFormMeja({...formMeja, code: e.target.value})} placeholder="A1 / B1 / MR1" /></label>
-            <label>Lantai <select value={formMeja.floor} onChange={e => setFormMeja({...formMeja, floor: e.target.value})}><option>Lantai 1</option><option>Lantai 2</option></select></label>
-            <label>Area <select value={formMeja.area} onChange={e => setFormMeja({...formMeja, area: e.target.value})}><option>Indoor</option><option>Outdoor</option><option>Meeting Room</option></select></label>
-            <label>Kapasitas <input type="number" min="1" max="30" value={formMeja.capacity} onChange={e => setFormMeja({...formMeja, capacity: Number(e.target.value)})} /></label>
-            <label>Status <select value={formMeja.physicalStatus} onChange={e => setFormMeja({...formMeja, physicalStatus: e.target.value})}><option value="AVAILABLE">AVAILABLE</option><option value="MAINTENANCE">MAINTENANCE</option></select></label>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'end' }}><button className="primary" type="submit">{formMeja.id ? 'Update Meja' : 'Tambah Meja'}</button>{formMeja.id && <button type="button" className="secondary" onClick={resetFormMeja}>Batal</button>}</div>
-          </form>
+          <div className="admin-toolbar"><div><h2>Master Meja</h2><p style={{ color: 'var(--muted)', marginTop: 0 }}>Admin mengatur 10 meja reguler dan 3 meeting room dari database.</p></div><div className="admin-toolbar-actions"><button className="primary" onClick={bukaTambahMeja}><Plus size={16}/> Tambah Meja</button><button className="secondary" onClick={() => cetakPdf('Master Meja', data.laporan?.tables || [])}>Download PDF</button><button className="secondary" onClick={() => buatExcel('master-meja.xls', data.laporan?.tables || [])}>Export Excel</button></div></div>
           <div className="admin-table-grid" style={{ marginTop: '16px' }}>{data.meja.map(m => <div key={m.code} className="admin-table-cell"><b style={{ fontSize: '1.5rem', display: 'block' }}>{m.code}</b><small>{m.floor} • {m.area} • {m.capacity} kursi • {m.physicalStatus}</small><div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}><button className="secondary" onClick={() => editMeja(m)} style={{ minHeight: '34px', padding: '7px 12px', borderRadius: '10px' }}>Edit</button><button className="ghost" onClick={() => hapusMeja(m)} style={{ minHeight: '34px', padding: '7px 12px', borderRadius: '10px' }}>Hapus</button></div></div>)}</div>
         </div>
       )}
 
       {tabAktif === 'menu' && (
         <div className="panel-kode-dua panel-full">
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}><h2>CRUD Master Menu</h2><div style={{ display: 'flex', gap: '8px' }}><button className="secondary" onClick={() => cetakPdf('Master Menu', data.laporan?.menu || [])}>Cetak PDF</button><button className="primary" onClick={() => buatExcel('master-menu.xls', data.laporan?.menu || [])}>Export Excel</button></div></div>
-          <form className="form-grid minimal" onSubmit={simpanMenu} style={{ marginTop: '16px' }}>
-            <label>Nama <input value={formMenu.name} onChange={e => setFormMenu({...formMenu, name: e.target.value})} placeholder="Nama menu" /></label>
-            <label>Kategori <input value={formMenu.category} onChange={e => setFormMenu({...formMenu, category: e.target.value})} placeholder="Coffee/Food" /></label>
-            <label>Harga <input type="number" min="1" value={formMenu.price} onChange={e => setFormMenu({...formMenu, price: Number(e.target.value)})} /></label>
-            <label>Status <select value={formMenu.available ? 'true' : 'false'} onChange={e => setFormMenu({...formMenu, available: e.target.value === 'true'})}><option value="true">Tersedia</option><option value="false">Tidak tersedia</option></select></label>
-            <label>Gambar <input value={formMenu.imageUrl} onChange={e => setFormMenu({...formMenu, imageUrl: e.target.value})} /></label>
-            <label className="full">Deskripsi <input value={formMenu.description} onChange={e => setFormMenu({...formMenu, description: e.target.value})} placeholder="Deskripsi menu" /></label>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'end' }}><button className="primary" type="submit">{formMenu.id ? 'Update Menu' : 'Tambah Menu'}</button>{formMenu.id && <button type="button" className="secondary" onClick={resetFormMenu}>Batal</button>}</div>
-          </form>
-          <div className="admin-menu-grid" style={{ marginTop: '16px' }}>{data.menu.map(m => <div key={m.id} className="admin-menu-item"><img src={m.imageUrl} alt={m.name} /><div style={{ flex: 1 }}><span style={{ fontSize: '0.7rem', color: 'var(--caramel)', fontWeight: 'bold', textTransform: 'uppercase' }}>{m.category}</span><b style={{ display: 'block', margin: '4px 0' }}>{m.name}</b><strong>{formatRupiah(m.price)}</strong><p style={{ margin: '8px 0', color: 'var(--muted)', fontSize: '.8rem' }}>{m.available ? 'Tersedia' : 'Tidak tersedia'}</p><div style={{ display: 'flex', gap: '8px' }}><button className="secondary" onClick={() => editMenu(m)} style={{ minHeight: '34px', padding: '7px 12px' }}>Edit</button><button className="ghost" onClick={() => hapusMenu(m)} style={{ minHeight: '34px', padding: '7px 12px' }}>Hapus</button></div></div></div>)}</div>
+          <div className="admin-toolbar"><h2>CRUD Master Menu</h2><div className="admin-toolbar-actions"><button className="primary" onClick={bukaTambahMenu}><Plus size={16}/> Tambah Menu</button><button className="secondary" onClick={() => cetakPdf('Master Menu', data.laporan?.menu || [])}>Download PDF</button><button className="secondary" onClick={() => buatExcel('master-menu.xls', data.laporan?.menu || [])}>Export Excel</button></div></div>
+          <div className="admin-menu-grid" style={{ marginTop: '16px' }}>{data.menu.map(m => <div key={m.id} className="admin-menu-item"><img src={assetUrl(m.imageUrl)} alt={m.name} /><div style={{ flex: 1 }}><span style={{ fontSize: '0.7rem', color: 'var(--caramel)', fontWeight: 'bold', textTransform: 'uppercase' }}>{m.category}</span><b style={{ display: 'block', margin: '4px 0' }}>{m.name}</b><strong>{formatRupiah(m.price)}</strong><p style={{ margin: '8px 0', color: 'var(--muted)', fontSize: '.8rem' }}>{m.available ? 'Tersedia' : 'Tidak tersedia'}</p><div style={{ display: 'flex', gap: '8px' }}><button className="secondary" onClick={() => editMenu(m)} style={{ minHeight: '34px', padding: '7px 12px' }}>Edit</button><button className="ghost" onClick={() => hapusMenu(m)} style={{ minHeight: '34px', padding: '7px 12px' }}>Hapus</button></div></div></div>)}</div>
         </div>
       )}
 
       {tabAktif === 'promo' && (
         <div className="panel-kode-dua panel-full">
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}><h2>CRUD Promo</h2><div style={{ display: 'flex', gap: '8px' }}><button className="secondary" onClick={() => cetakPdf('Master Promo', data.laporan?.promos || [])}>Cetak PDF</button><button className="primary" onClick={() => buatExcel('master-promo.xls', data.laporan?.promos || [])}>Export Excel</button></div></div>
-          <form className="form-grid minimal" onSubmit={simpanPromo} style={{ marginTop: '16px' }}>
-            <label>Judul <input value={formPromo.title} onChange={e => setFormPromo({...formPromo, title: e.target.value})} placeholder="Judul promo" /></label>
-            <label>Badge <input value={formPromo.badge} onChange={e => setFormPromo({...formPromo, badge: e.target.value})} placeholder="Rp300K+" /></label>
-            <label>Status <select value={formPromo.active ? 'true' : 'false'} onChange={e => setFormPromo({...formPromo, active: e.target.value === 'true'})}><option value="true">Aktif</option><option value="false">Nonaktif</option></select></label>
-            <label>Mulai <input type="date" value={formPromo.startDate} onChange={e => setFormPromo({...formPromo, startDate: e.target.value})} /></label>
-            <label>Selesai <input type="date" value={formPromo.endDate} onChange={e => setFormPromo({...formPromo, endDate: e.target.value})} /></label>
-            <label className="full">Deskripsi <input value={formPromo.description} onChange={e => setFormPromo({...formPromo, description: e.target.value})} placeholder="Deskripsi promo" /></label>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'end' }}><button className="primary" type="submit">{formPromo.id ? 'Update Promo' : 'Tambah Promo'}</button>{formPromo.id && <button type="button" className="secondary" onClick={resetFormPromo}>Batal</button>}</div>
-          </form>
+          <div className="admin-toolbar"><h2>CRUD Promo</h2><div className="admin-toolbar-actions"><button className="primary" onClick={bukaTambahPromo}><Plus size={16}/> Tambah Promo</button><button className="secondary" onClick={() => cetakPdf('Master Promo', data.laporan?.promos || [])}>Download PDF</button><button className="secondary" onClick={() => buatExcel('master-promo.xls', data.laporan?.promos || [])}>Export Excel</button></div></div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '14px', marginTop: '16px' }}>{data.promos.map(p => <div key={p.id} className="reservation-mini-card"><span className="eyebrow">{p.badge}</span><h3 style={{ margin: '0 0 8px' }}>{p.title}</h3><p style={{ color: 'var(--muted)', fontSize: '.9rem' }}>{p.description}</p><StatusLabel nilai={p.active ? 'AKTIF' : 'NONAKTIF'} /><div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}><button className="secondary" onClick={() => editPromo(p)} style={{ minHeight: '34px', padding: '7px 12px' }}>Edit</button><button className="ghost" onClick={() => hapusPromo(p)} style={{ minHeight: '34px', padding: '7px 12px' }}>Hapus</button></div></div>)}</div>
         </div>
       )}
 
       {tabAktif === 'laporan' && <LaporanAdmin laporan={data.laporan} />}
+
+      <AnimatePresence>
+        {detailPanel && (
+          <AdminFormModal terbuka={true} judul={detailPanel.judul} deskripsi={detailPanel.deskripsi} tutup={() => setDetailPanel(null)}>
+            <div className="detail-grid">
+              {detailPanel.rows.map(([label, value]) => (
+                <div className="detail-item" key={label}>
+                  <span>{label}</span>
+                  <b>{String(value ?? '-')}</b>
+                </div>
+              ))}
+            </div>
+            <div className="crud-modal-actions"><button className="primary" onClick={() => setDetailPanel(null)}>Tutup</button></div>
+          </AdminFormModal>
+        )}
+        {modalAktif === 'meja' && (
+          <AdminFormModal terbuka={true} judul={formMeja.id ? 'Edit Meja' : 'Tambah Meja'} deskripsi="Form meja dibuat terpisah dalam popup agar CRUD admin lebih rapi." tutup={() => setModalAktif(null)}>
+            <form className="form-grid minimal" onSubmit={simpanMeja}>
+              <label>Kode <input value={formMeja.code} onChange={e => setFormMeja({...formMeja, code: e.target.value})} placeholder="A1 / B1 / MR1" /></label>
+              <label>Lantai <select value={formMeja.floor} onChange={e => setFormMeja({...formMeja, floor: e.target.value})}><option>Lantai 1</option><option>Lantai 2</option></select></label>
+              <label>Area <select value={formMeja.area} onChange={e => setFormMeja({...formMeja, area: e.target.value})}><option>Indoor</option><option>Outdoor</option><option>Meeting Room</option></select></label>
+              <label>Kapasitas <input type="number" min="1" max="30" value={formMeja.capacity} onChange={e => setFormMeja({...formMeja, capacity: Number(e.target.value)})} /></label>
+              <label>Status <select value={formMeja.physicalStatus} onChange={e => setFormMeja({...formMeja, physicalStatus: e.target.value})}><option value="AVAILABLE">AVAILABLE</option><option value="MAINTENANCE">MAINTENANCE</option></select></label>
+              <div className="crud-modal-actions"><button type="button" className="secondary" onClick={() => setModalAktif(null)}>Batal</button><button className="primary" type="submit">{formMeja.id ? 'Update Meja' : 'Simpan Meja'}</button></div>
+            </form>
+          </AdminFormModal>
+        )}
+        {modalAktif === 'menu' && (
+          <AdminFormModal terbuka={true} judul={formMenu.id ? 'Edit Menu' : 'Tambah Menu'} deskripsi="Upload gambar menggunakan tombol Choose File. Path gambar otomatis tersimpan ke database." tutup={() => setModalAktif(null)}>
+            <form className="form-grid minimal" onSubmit={simpanMenu}>
+              <label>Nama <input value={formMenu.name} onChange={e => setFormMenu({...formMenu, name: e.target.value})} placeholder="Nama menu" /></label>
+              <label>Kategori <input value={formMenu.category} onChange={e => setFormMenu({...formMenu, category: e.target.value})} placeholder="Coffee/Food" /></label>
+              <label>Harga <input type="number" min="1" value={formMenu.price} onChange={e => setFormMenu({...formMenu, price: Number(e.target.value)})} /></label>
+              <label>Status <select value={formMenu.available ? 'true' : 'false'} onChange={e => setFormMenu({...formMenu, available: e.target.value === 'true'})}><option value="true">Tersedia</option><option value="false">Tidak tersedia</option></select></label>
+              <label className="full">Deskripsi <input value={formMenu.description} onChange={e => setFormMenu({...formMenu, description: e.target.value})} placeholder="Deskripsi menu" /></label>
+              <div className="image-upload-box">
+                <div className="image-upload-preview"><img src={assetUrl(formMenu.imageUrl)} alt="Preview menu" /></div>
+                <label>Gambar Menu
+                  <input type="file" accept="image/*" onChange={handleGambarMenu} disabled={sedangUploadGambar} />
+                  <span className="file-note">{sedangUploadGambar ? 'Mengupload gambar...' : `Gambar aktif: ${formMenu.imageUrl || '-'}`}</span>
+                </label>
+              </div>
+              <div className="crud-modal-actions"><button type="button" className="secondary" onClick={() => setModalAktif(null)}>Batal</button><button className="primary" type="submit" disabled={sedangUploadGambar}>{formMenu.id ? 'Update Menu' : 'Simpan Menu'}</button></div>
+            </form>
+          </AdminFormModal>
+        )}
+        {modalAktif === 'promo' && (
+          <AdminFormModal terbuka={true} judul={formPromo.id ? 'Edit Promo' : 'Tambah Promo'} deskripsi="Form promo dibuat dalam popup supaya halaman admin tetap bersih." tutup={() => setModalAktif(null)}>
+            <form className="form-grid minimal" onSubmit={simpanPromo}>
+              <label>Judul <input value={formPromo.title} onChange={e => setFormPromo({...formPromo, title: e.target.value})} placeholder="Judul promo" /></label>
+              <label>Badge <input value={formPromo.badge} onChange={e => setFormPromo({...formPromo, badge: e.target.value})} placeholder="Rp300K+" /></label>
+              <label>Status <select value={formPromo.active ? 'true' : 'false'} onChange={e => setFormPromo({...formPromo, active: e.target.value === 'true'})}><option value="true">Aktif</option><option value="false">Nonaktif</option></select></label>
+              <label>Mulai <input type="date" value={formPromo.startDate} onChange={e => setFormPromo({...formPromo, startDate: e.target.value})} /></label>
+              <label>Selesai <input type="date" value={formPromo.endDate} onChange={e => setFormPromo({...formPromo, endDate: e.target.value})} /></label>
+              <label className="full">Deskripsi <input value={formPromo.description} onChange={e => setFormPromo({...formPromo, description: e.target.value})} placeholder="Deskripsi promo" /></label>
+              <div className="crud-modal-actions"><button type="button" className="secondary" onClick={() => setModalAktif(null)}>Batal</button><button className="primary" type="submit">{formPromo.id ? 'Update Promo' : 'Simpan Promo'}</button></div>
+            </form>
+          </AdminFormModal>
+        )}
+      </AnimatePresence>
     </LayoutInternal>
   );
 }
 
 
-function RuangPegawai({ keluar, beriNotifikasi }) {
+function RuangPegawai({ keluar, beriNotifikasi, user }) {
   const [tabAktif, setTabAktif] = useState('antrian');
   const [data, setData] = useState(null);
-  const actorName = 'Pegawai BrewVibe';
+  const actorName = user?.fullName || 'Pegawai Dika Coffe Shop';
+  const shiftName = user?.shiftName || '';
+  const isBackupShift = shiftName.toLowerCase().includes('backup');
+  const employeeFilter = isBackupShift ? '' : actorName;
   
-  const muatData = () => mockApi.ambilDataPegawai().then(setData).catch(e => beriNotifikasi('Error', e.message, 'error'));
+  const muatData = () => mockApi.ambilDataPegawai(employeeFilter).then(setData).catch(e => beriNotifikasi('Error', e.message, 'error'));
   useEffect(() => { muatData(); }, []);
   useRealtime(muatData);
 
   const updateRsv = async (id, status) => {
     try {
       await mockApi.ubahStatusReservasiPegawai(id, status, actorName);
-      await muatData(); window.dispatchEvent(new Event('brewvibe-refresh'));
+      await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh'));
       beriNotifikasi('Sukses', `Status reservasi menjadi ${status}`, 'success');
     } catch (error) { beriNotifikasi('Gagal update reservasi', error.message, 'error'); }
   };
   const updateOrd = async (id, status) => {
     try {
       await mockApi.ubahStatusPesananPegawai(id, status, actorName);
-      await muatData(); window.dispatchEvent(new Event('brewvibe-refresh'));
+      await muatData(); window.dispatchEvent(new Event('dikacoffeshop-refresh'));
       beriNotifikasi('Sukses', `Status pesanan menjadi ${status}`, 'success');
     } catch (error) { beriNotifikasi('Gagal update pesanan', error.message, 'error'); }
   };
@@ -1293,14 +1664,14 @@ function RuangPegawai({ keluar, beriNotifikasi }) {
   const orderAktif = data.pesanan.filter(o => ['PENDING_PAYMENT', 'PROCESSING', 'READY'].includes(o.status)).length;
 
   return (
-    <LayoutInternal jenis="pegawai" tabAktif={tabAktif} setTabAktif={setTabAktif} tabs={[[ 'antrian', 'Antrian Check-in' ], [ 'pesanan', 'Antrian Pesanan' ], [ 'meja', 'Status Meja' ]]} judul="Workspace Pegawai" deskripsi="Kelola check-in tamu, pesanan berjalan, dan status meja secara realtime." catatan={{ judul: 'Shift', isi: `${actorName} • ${totalAktif} reservasi aktif • ${orderAktif} pesanan aktif` }} tombolRefresh={muatData} keluar={keluar}>
+    <LayoutInternal jenis="pegawai" tabAktif={tabAktif} setTabAktif={setTabAktif} tabs={[[ 'antrian', 'Antrian Check-in' ], [ 'pesanan', 'Antrian Pesanan' ], [ 'meja', 'Status Meja' ]]} judul="Workspace Pegawai" deskripsi="Reservasi otomatis masuk sesuai jadwal shift. Pegawai hanya memproses reservasi dan pesanan yang masuk ke shift kerja." catatan={{ judul: 'Shift', isi: `${actorName}${shiftName ? ` (${shiftName})` : ''} • ${isBackupShift ? 'Melihat semua shift' : 'Reservasi shift saya'} • ${totalAktif} reservasi aktif • ${orderAktif} pesanan aktif` }} tombolRefresh={muatData} keluar={keluar}>
       {tabAktif === 'antrian' && (
         <div className="panel-kode-dua">
           <h2>Antrian Check-in</h2>
           <p style={{ color: 'var(--muted)', marginTop: 0 }}>Pegawai bisa konfirmasi, check-in, menyelesaikan, atau membatalkan reservasi. Semua perubahan masuk laporan shift admin.</p>
           {data.errors?.length > 0 && <div style={{ background: '#fff1ed', border: '1px solid #f0c7b8', color: '#8c2515', padding: '12px', borderRadius: '12px', marginTop: '12px' }}>Sebagian data gagal dimuat dari server. Cek terminal Spring Boot untuk detail error.</div>}
           <div style={{ display: 'grid', gap: '16px', marginTop: '20px' }}>
-            {data.reservasi.length === 0 && <Kosong judul="Belum ada reservasi" deskripsi="Reservasi customer akan muncul realtime di sini." />}
+            {data.reservasi.length === 0 && <Kosong judul="Belum ada reservasi" deskripsi="Reservasi customer akan muncul realtime sesuai shift pegawai yang login." />}
             {data.reservasi.map(r => (
               <div key={r.id} className="queue-row-kode-dua" style={{ display: 'grid', gridTemplateColumns: '1.5fr auto', gap: '14px', alignItems: 'center' }}>
                 <div><b style={{ fontSize: '1.1rem', display: 'block' }}>{r.guestName}</b><span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{r.code} • Meja {r.tableCode} • {potongJam(r.reservationTime)} • {r.guestCount} tamu • PIC: {r.assignedEmployee || '-'}</span></div>
@@ -1358,8 +1729,12 @@ function RuangPegawai({ keluar, beriNotifikasi }) {
 // ==========================================
 export default function App() {
   const [halaman, setHalaman] = useState('home');
-  const [modeLogin, setModeLogin] = useState(null);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dika-user') || 'null'); } catch (_) { return null; }
+  });
+  const [modeLogin, setModeLogin] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dika-user') || 'null') ? null : 'customer'; } catch (_) { return 'customer'; }
+  });
   const [toast, setToast] = useState(null);
   const [menu, setMenu] = useState([]);
   const [promos, setPromos] = useState([]);
@@ -1375,10 +1750,10 @@ export default function App() {
     mockApi.ambilPromoPublik().then(setPromos).catch(() => setPromos([]));
   }, []);
 
-  const keluar = () => { setUser(null); setHalaman('home'); };
+  const keluar = () => { localStorage.removeItem('dika-user'); setUser(null); setHalaman('home'); setModeLogin('customer'); };
 
   if (halaman === 'admin' && user?.role === 'ADMIN') return <><StyleInjector/><RuangAdmin keluar={keluar} beriNotifikasi={beriNotifikasi} /><ToastInfo toast={toast} tutup={() => setToast(null)} /></>;
-  if (halaman === 'pegawai' && user?.role === 'PEGAWAI') return <><StyleInjector/><RuangPegawai keluar={keluar} beriNotifikasi={beriNotifikasi} /><ToastInfo toast={toast} tutup={() => setToast(null)} /></>;
+  if (halaman === 'pegawai' && user?.role === 'PEGAWAI') return <><StyleInjector/><RuangPegawai keluar={keluar} beriNotifikasi={beriNotifikasi} user={user} /><ToastInfo toast={toast} tutup={() => setToast(null)} /></>;
 
   return (
     <>
@@ -1392,11 +1767,13 @@ export default function App() {
       </main>
       <FooterProfesional bukaLogin={setModeLogin} />
       
-      {modeLogin && (
+      {(modeLogin || !user) && (
         <LoginInternal 
-          mode={modeLogin} 
+          mode={modeLogin || 'customer'} 
+          wajib={!user}
+          ubahMode={setModeLogin}
           tutup={() => setModeLogin(null)} 
-          sukses={(akun) => { setUser(akun); setModeLogin(null); setHalaman(akun.role === 'ADMIN' ? 'admin' : akun.role === 'PEGAWAI' ? 'pegawai' : 'home'); }}
+          sukses={(akun) => { localStorage.setItem('dika-user', JSON.stringify(akun)); setUser(akun); setModeLogin(null); setHalaman(akun.role === 'ADMIN' ? 'admin' : akun.role === 'PEGAWAI' ? 'pegawai' : 'home'); }}
           beriNotifikasi={beriNotifikasi} 
         />
       )}

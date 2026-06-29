@@ -104,6 +104,8 @@ public class ReportService {
                 "customer", r.getGuestName(),
                 "tanggal", r.getReservationDate(),
                 "jam", r.getReservationTime(),
+                "selesai", r.getReservationEndTime(),
+                "durasiMenit", r.getDurationMinutes(),
                 "meja", r.getTable().getCode(),
                 "area", r.getArea(),
                 "lantai", r.getTable().getFloor(),
@@ -204,6 +206,8 @@ public class ReportService {
                 "customer", r.getGuestName(),
                 "tanggal", r.getReservationDate(),
                 "jam", r.getReservationTime(),
+                "selesai", r.getReservationEndTime(),
+                "durasiMenit", r.getDurationMinutes(),
                 "meja", r.getTable().getCode(),
                 "pegawai", emptyDash(r.getAssignedEmployee()),
                 "catatan", emptyDash(r.getCancelReason())
@@ -219,6 +223,7 @@ public class ReportService {
                 "dibuat", r.getCreatedAt(),
                 "ditugaskanKe", emptyDash(r.getAssignedEmployee()),
                 "waktuAssign", emptyDash(r.getAssignedAt()),
+                "durasiMenit", r.getDurationMinutes(),
                 "checkIn", emptyDash(r.getCheckedInAt()),
                 "selesai", emptyDash(r.getCompletedAt()),
                 "batal", emptyDash(r.getCancelledAt())

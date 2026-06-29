@@ -1,12 +1,12 @@
-# BrewVibe Back-End
+# Dika Coffe Shop Back-End
 
 Spring Boot REST API untuk aplikasi reservasi cafe.
 
 ## Akun Demo
 
-- Customer: customer@brewvibe.id / customer123
-- Admin: admin@brewvibe.id / admin123
-- Pegawai: pegawai@brewvibe.id / pegawai123
+- Customer: customer@dikacoffeshop.id / customer123
+- Admin: admin@dikacoffeshop.id / admin123
+- Pegawai: pegawai@dikacoffeshop.id / pegawai123
 
 ## Endpoint Utama
 
@@ -27,7 +27,7 @@ Spring Boot REST API untuk aplikasi reservasi cafe.
 
 ## Database
 
-Gunakan MySQL atau MariaDB. Database default: `brewvibe`.
+Gunakan MySQL atau MariaDB. Database default: `dikacoffeshop`.
 
 ## Data master meja
 

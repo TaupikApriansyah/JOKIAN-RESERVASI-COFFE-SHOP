@@ -3597,3 +3597,20 @@ main {
     transform: none;
   }
 }
+
+/* Field kecil untuk pengaturan shift admin */
+.mini-field {
+  display: grid;
+  gap: 6px;
+  min-width: 120px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.mini-field input {
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: #fff;
+  font: inherit;
+  color: var(--ink);
+}

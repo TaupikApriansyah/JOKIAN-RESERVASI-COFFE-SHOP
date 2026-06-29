@@ -16,6 +16,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     boolean existsByTable_Id(Long tableId);
     List<Reservation> findByPhoneContainingIgnoreCaseOrderByReservationDateDescReservationTimeDesc(String phone);
     List<Reservation> findByReservationDateOrderByReservationTimeAsc(LocalDate date);
+    List<Reservation> findByReservationDateAndAssignedEmployeeIgnoreCaseOrderByReservationTimeAsc(LocalDate date, String assignedEmployee);
     List<Reservation> findByReservationDateBetweenOrderByReservationDateDescReservationTimeDesc(LocalDate start, LocalDate end);
     List<Reservation> findAllByOrderByReservationDateDescReservationTimeDesc();
 

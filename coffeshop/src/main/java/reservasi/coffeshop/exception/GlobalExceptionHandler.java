@@ -6,8 +6,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -37,6 +40,25 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException ex) {
         log.warn("Data tidak ditemukan: {}", ex.getMessage());
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), null);
+    }
+
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidJson(HttpMessageNotReadableException ex) {
+        log.warn("Format JSON tidak valid: {}", ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, "Format request tidak valid. Periksa kembali data yang dikirim.", null);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        log.warn("Ukuran file upload terlalu besar: {}", ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, "Ukuran file maksimal 2 MB.", null);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingStaticResource(NoResourceFoundException ex) {
+        log.warn("Resource tidak ditemukan: {}", ex.getResourcePath());
+        return build(HttpStatus.NOT_FOUND, "Resource tidak ditemukan.", null);
     }
 
     @ExceptionHandler(Exception.class)

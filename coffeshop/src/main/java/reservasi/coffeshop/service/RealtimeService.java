@@ -17,12 +17,15 @@ public class RealtimeService {
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
 
     public SseEmitter subscribe() {
-        SseEmitter emitter = new SseEmitter(0L);
+        // Timeout dibatasi agar koneksi SSE tidak menggantung terlalu lama di browser.
+        SseEmitter emitter = new SseEmitter(120_000L);
         emitters.add(emitter);
         emitter.onCompletion(() -> emitters.remove(emitter));
         emitter.onTimeout(() -> emitters.remove(emitter));
         emitter.onError(error -> emitters.remove(emitter));
-        send(emitter, "connected");
+        if (!send(emitter, "connected")) {
+            emitters.remove(emitter);
+        }
         return emitter;
     }
 
@@ -37,7 +40,7 @@ public class RealtimeService {
     private boolean send(SseEmitter emitter, String eventType) {
         try {
             emitter.send(SseEmitter.event()
-                    .name("brewvibe-update")
+                    .name("dikacoffeshop-update")
                     .data(Map.of("type", eventType, "time", LocalDateTime.now().toString())));
             return true;
         } catch (IOException | IllegalStateException ex) {

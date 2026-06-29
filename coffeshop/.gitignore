@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Dika Coffe Shop runtime files ###
+uploads/
+logs/
+.env

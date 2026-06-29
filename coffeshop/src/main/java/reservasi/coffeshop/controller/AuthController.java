@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import reservasi.coffeshop.dto.LoginRequest;
 import reservasi.coffeshop.dto.LoginResponse;
+import reservasi.coffeshop.dto.RegisterCustomerRequest;
 import reservasi.coffeshop.service.AuthService;
 
 @RestController
@@ -18,5 +19,10 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/register/customer")
+    public LoginResponse registerCustomer(@Valid @RequestBody RegisterCustomerRequest request) {
+        return authService.registerCustomer(request);
     }
 }

@@ -18,26 +18,44 @@ public class DataSeeder {
     @Bean
     CommandLineRunner seedData(UserAccountRepository users, CafeTableRepository tables, MenuItemRepository menu, PromoRepository promos, ReservationRepository reservations, CustomerOrderRepository orders, AuditLogRepository auditLogs, PasswordEncoder encoder) {
         return args -> {
-            seedUser(users, encoder, "Admin BrewVibe", "admin@brewvibe.id", "admin123", Role.ADMIN, "081100000001");
-            seedUser(users, encoder, "Pegawai BrewVibe", "pegawai@brewvibe.id", "pegawai123", Role.PEGAWAI, "081100000002");
-            seedUser(users, encoder, "Andi Shift Pagi", "andi@brewvibe.id", "pegawai123", Role.PEGAWAI, "081100000004");
-            seedUser(users, encoder, "Sinta Shift Sore", "sinta@brewvibe.id", "pegawai123", Role.PEGAWAI, "081100000005");
-            seedUser(users, encoder, "Customer BrewVibe", "customer@brewvibe.id", "customer123", Role.CUSTOMER, "081100000003");
+            migrateExistingBrand(users, reservations, orders, auditLogs);
+
+            seedUser(users, encoder, "Admin Dika Coffe Shop", "admin@dikacoffeshop.id", "admin123", Role.ADMIN, "081100000001", null, null, null);
+            seedUser(users, encoder, "Pegawai Dika Coffe Shop", "pegawai@dikacoffeshop.id", "pegawai123", Role.PEGAWAI, "081100000002", "Backup", LocalTime.of(9, 0), LocalTime.of(21, 0));
+            seedUser(users, encoder, "Andi Shift Pagi", "andi@dikacoffeshop.id", "pegawai123", Role.PEGAWAI, "081100000004", "Shift Pagi", LocalTime.of(9, 0), LocalTime.of(15, 0));
+            seedUser(users, encoder, "Sinta Shift Sore", "sinta@dikacoffeshop.id", "pegawai123", Role.PEGAWAI, "081100000005", "Shift Sore", LocalTime.of(15, 0), LocalTime.of(21, 0));
+            seedUser(users, encoder, "Customer Dika Coffe Shop", "customer@dikacoffeshop.id", "customer123", Role.CUSTOMER, "081100000003", null, null, null);
 
             List<CafeTableSeed> tableSeeds = List.of(
-                    new CafeTableSeed("A1", "Indoor", "Lantai 1", 2, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("A2", "Indoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("A3", "Indoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("A4", "Indoor", "Lantai 2", 6, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("A5", "Indoor", "Lantai 2", 8, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("B1", "Outdoor", "Lantai 1", 2, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("B2", "Outdoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("B3", "Outdoor", "Lantai 2", 4, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("B4", "Outdoor", "Lantai 2", 6, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("B5", "Outdoor", "Lantai 2", 8, TablePhysicalStatus.AVAILABLE),
+                    // Lantai 1: 5 indoor, 5 outdoor, 3 meeting room
+                    new CafeTableSeed("IN1", "Indoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("IN2", "Indoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("IN3", "Indoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("IN4", "Indoor", "Lantai 1", 6, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("IN5", "Indoor", "Lantai 1", 2, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD1", "Outdoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD2", "Outdoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD3", "Outdoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD4", "Outdoor", "Lantai 1", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD5", "Outdoor", "Lantai 1", 2, TablePhysicalStatus.AVAILABLE),
                     new CafeTableSeed("MR1", "Meeting Room", "Lantai 1", 8, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("MR2", "Meeting Room", "Lantai 2", 10, TablePhysicalStatus.AVAILABLE),
-                    new CafeTableSeed("MR3", "Meeting Room", "Lantai 2", 12, TablePhysicalStatus.AVAILABLE)
+                    new CafeTableSeed("MR2", "Meeting Room", "Lantai 1", 8, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("MR3", "Meeting Room", "Lantai 1", 6, TablePhysicalStatus.AVAILABLE),
+
+                    // Lantai 2: 5 indoor, 5 outdoor, 3 meeting room
+                    new CafeTableSeed("IN6", "Indoor", "Lantai 2", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("IN7", "Indoor", "Lantai 2", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("IN8", "Indoor", "Lantai 2", 2, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("IN9", "Indoor", "Lantai 2", 6, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("IN10", "Indoor", "Lantai 2", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD6", "Outdoor", "Lantai 2", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD7", "Outdoor", "Lantai 2", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD8", "Outdoor", "Lantai 2", 2, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD9", "Outdoor", "Lantai 2", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("OD10", "Outdoor", "Lantai 2", 4, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("MR4", "Meeting Room", "Lantai 2", 6, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("MR5", "Meeting Room", "Lantai 2", 8, TablePhysicalStatus.AVAILABLE),
+                    new CafeTableSeed("MR6", "Meeting Room", "Lantai 2", 10, TablePhysicalStatus.AVAILABLE)
             );
 
             for (CafeTableSeed seed : tableSeeds) {
@@ -49,6 +67,9 @@ public class DataSeeder {
                 table.setPhysicalStatus(seed.status());
                 tables.save(table);
             }
+            cleanupLegacyTableCodes(tables, reservations);
+
+            migrateReservationTiming(reservations);
 
             if (menu.count() == 0) {
                 saveMenu(menu, "Velvet Cappuccino", "Coffee", "Espresso tebal dengan microfoam susu yang lembut.", 38000, "/images/produk-kopi.png");
@@ -67,12 +88,12 @@ public class DataSeeder {
             }
 
             if (reservations.count() == 0) {
-                CafeTable indoor = tables.findByCodeIgnoreCase("A2").orElseThrow();
-                CafeTable meeting = tables.findByCodeIgnoreCase("MR2").orElseThrow();
-                CafeTable outdoor = tables.findByCodeIgnoreCase("B4").orElseThrow();
+                CafeTable indoor = tables.findByCodeIgnoreCase("IN2").orElseThrow();
+                CafeTable meeting = tables.findByCodeIgnoreCase("MR5").orElseThrow();
+                CafeTable outdoor = tables.findByCodeIgnoreCase("OD9").orElseThrow();
 
                 Reservation r1 = saveReservation(reservations, "BV-1001", "Adi Nugroho", "081234567890", LocalDate.now(), LocalTime.of(10, 30), 2, indoor.getArea(), indoor, ReservationStatus.CONFIRMED, "Dekat jendela jika tersedia.", "Andi Shift Pagi");
-                saveReservation(reservations, "BV-1002", "Siti Rahma", "081298765432", LocalDate.now(), LocalTime.of(13, 0), 8, meeting.getArea(), meeting, ReservationStatus.PENDING, "Meeting komunitas lantai 2.", null);
+                saveReservation(reservations, "BV-1002", "Siti Rahma", "081298765432", LocalDate.now(), LocalTime.of(13, 0), 8, meeting.getArea(), meeting, ReservationStatus.CONFIRMED, "Meeting komunitas lantai 2.", "Andi Shift Pagi");
                 Reservation r3 = saveReservation(reservations, "BV-1003", "Raka Pratama", "081355501234", LocalDate.now(), LocalTime.of(19, 0), 4, outdoor.getArea(), outdoor, ReservationStatus.SERVING, "Area tidak terlalu dekat speaker.", "Sinta Shift Sore");
 
                 if (orders.count() == 0) {
@@ -90,22 +111,116 @@ public class DataSeeder {
                 AuditLog log = new AuditLog();
                 log.setAction("SYSTEM_SEED");
                 log.setActor("System");
-                log.setDetail("Data awal BrewVibe dibuat: akun, meja, menu, promo, reservasi, dan pesanan.");
+                log.setDetail("Data awal Dika Coffe Shop dibuat: akun, meja, menu, promo, reservasi, dan pesanan.");
                 auditLogs.save(log);
             }
         };
     }
 
-    private void seedUser(UserAccountRepository users, PasswordEncoder encoder, String name, String email, String password, Role role, String phone) {
-        if (!users.existsByEmailIgnoreCase(email)) {
-            UserAccount user = new UserAccount();
-            user.setFullName(name);
-            user.setEmail(email);
-            user.setPasswordHash(encoder.encode(password));
-            user.setRole(role);
-            user.setPhone(phone);
-            users.save(user);
+
+    private void cleanupLegacyTableCodes(CafeTableRepository tables, ReservationRepository reservations) {
+        List<String> legacyCodes = List.of("A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5");
+        for (String code : legacyCodes) {
+            tables.findByCodeIgnoreCase(code).ifPresent(table -> {
+                if (table.getId() != null && !reservations.existsByTable_Id(table.getId())) {
+                    tables.delete(table);
+                } else {
+                    table.setPhysicalStatus(TablePhysicalStatus.MAINTENANCE);
+                    tables.save(table);
+                }
+            });
         }
+    }
+
+    private void migrateReservationTiming(ReservationRepository reservations) {
+        for (Reservation reservation : reservations.findAll()) {
+            int durationMinutes = reservation.getDurationMinutes() > 0
+                    ? reservation.getDurationMinutes()
+                    : (reservation.getTable() != null && reservation.getTable().getArea() != null && reservation.getTable().getArea().equalsIgnoreCase("Meeting Room") ? 180 : 120);
+            boolean changed = false;
+            if (reservation.getDurationMinutes() <= 0) {
+                reservation.setDurationMinutes(durationMinutes);
+                changed = true;
+            }
+            if (reservation.getReservationEndTime() == null && reservation.getReservationTime() != null) {
+                reservation.setReservationEndTime(reservation.getReservationTime().plusMinutes(durationMinutes));
+                changed = true;
+            }
+            if (changed) reservations.save(reservation);
+        }
+    }
+
+    private void migrateExistingBrand(UserAccountRepository users, ReservationRepository reservations, CustomerOrderRepository orders, AuditLogRepository auditLogs) {
+        String oldBrand = "Brew" + "Vibe";
+        String newBrand = "Dika Coffe Shop";
+        String oldDomain = oldBrand.toLowerCase() + ".id";
+        String newDomain = "dikacoffeshop.id";
+
+        for (UserAccount user : users.findAll()) {
+            boolean changed = false;
+            if (user.getFullName() != null && user.getFullName().contains(oldBrand)) {
+                user.setFullName(user.getFullName().replace(oldBrand, newBrand));
+                changed = true;
+            }
+            if (user.getEmail() != null && user.getEmail().toLowerCase().endsWith("@" + oldDomain)) {
+                String newEmail = user.getEmail().toLowerCase().replace("@" + oldDomain, "@" + newDomain);
+                if (!users.existsByEmailIgnoreCase(newEmail)) {
+                    user.setEmail(newEmail);
+                    changed = true;
+                }
+            }
+            if (changed) users.save(user);
+        }
+
+        for (Reservation reservation : reservations.findAll()) {
+            boolean changed = false;
+            if (reservation.getAssignedEmployee() != null && reservation.getAssignedEmployee().contains(oldBrand)) {
+                reservation.setAssignedEmployee(reservation.getAssignedEmployee().replace(oldBrand, newBrand));
+                changed = true;
+            }
+            if (reservation.getHandledBy() != null && reservation.getHandledBy().contains(oldBrand)) {
+                reservation.setHandledBy(reservation.getHandledBy().replace(oldBrand, newBrand));
+                changed = true;
+            }
+            if (changed) reservations.save(reservation);
+        }
+
+        for (CustomerOrder order : orders.findAll()) {
+            if (order.getHandledBy() != null && order.getHandledBy().contains(oldBrand)) {
+                order.setHandledBy(order.getHandledBy().replace(oldBrand, newBrand));
+                orders.save(order);
+            }
+        }
+
+        for (AuditLog auditLog : auditLogs.findAll()) {
+            boolean changed = false;
+            if (auditLog.getActor() != null && auditLog.getActor().contains(oldBrand)) {
+                auditLog.setActor(auditLog.getActor().replace(oldBrand, newBrand));
+                changed = true;
+            }
+            if (auditLog.getDetail() != null && auditLog.getDetail().contains(oldBrand)) {
+                auditLog.setDetail(auditLog.getDetail().replace(oldBrand, newBrand));
+                changed = true;
+            }
+            if (changed) auditLogs.save(auditLog);
+        }
+    }
+
+    private void seedUser(UserAccountRepository users, PasswordEncoder encoder, String name, String email, String password, Role role, String phone, String shiftName, LocalTime shiftStart, LocalTime shiftEnd) {
+        UserAccount user = users.findByEmailIgnoreCase(email).orElseGet(UserAccount::new);
+        boolean baru = user.getId() == null;
+        user.setFullName(name);
+        user.setEmail(email);
+        if (baru || user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            user.setPasswordHash(encoder.encode(password));
+        }
+        user.setRole(role);
+        user.setPhone(phone);
+        user.setActive(true);
+        user.setShiftName(shiftName);
+        user.setShiftStart(shiftStart);
+        user.setShiftEnd(shiftEnd);
+        users.save(user);
     }
 
     private void saveMenu(MenuItemRepository menu, String name, String category, String desc, int price, String imageUrl) {
@@ -135,6 +250,9 @@ public class DataSeeder {
         reservation.setPhone(phone);
         reservation.setReservationDate(date);
         reservation.setReservationTime(time);
+        int durationMinutes = table.getArea().equalsIgnoreCase("Meeting Room") ? 180 : 120;
+        reservation.setDurationMinutes(durationMinutes);
+        reservation.setReservationEndTime(time.plusMinutes(durationMinutes));
         reservation.setGuestCount(guests);
         reservation.setArea(area);
         reservation.setTable(table);

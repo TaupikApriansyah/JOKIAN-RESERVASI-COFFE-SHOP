@@ -2,6 +2,7 @@ package reservasi.coffeshop.controller;
 
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import reservasi.coffeshop.dto.AssignEmployeeRequest;
+import org.springframework.web.multipart.MultipartFile;
 import reservasi.coffeshop.dto.CreateTableRequest;
 import reservasi.coffeshop.dto.DashboardResponse;
 import reservasi.coffeshop.dto.MenuItemResponse;
@@ -23,6 +24,8 @@ import reservasi.coffeshop.dto.SaveMenuItemRequest;
 import reservasi.coffeshop.dto.SavePromoRequest;
 import reservasi.coffeshop.dto.StatusUpdateRequest;
 import reservasi.coffeshop.dto.TableResponse;
+import reservasi.coffeshop.dto.SaveEmployeeAccountRequest;
+import reservasi.coffeshop.dto.SaveEmployeeShiftRequest;
 import reservasi.coffeshop.dto.UpdateTableRequest;
 import reservasi.coffeshop.dto.UserAccountResponse;
 import reservasi.coffeshop.service.AdminService;
@@ -92,17 +95,24 @@ public class AdminController {
         return reservationService.updateStatus(id, request);
     }
 
-    @PutMapping("/reservations/{id}/assign")
-    public ReservationResponse assignReservation(
-            @PathVariable Long id,
-            @Valid @RequestBody AssignEmployeeRequest request
-    ) {
-        return reservationService.assignEmployee(id, request);
-    }
+    // Admin tidak melakukan assign manual. Pegawai ditentukan otomatis berdasarkan shift reservasi.
 
     @GetMapping("/employees")
     public List<UserAccountResponse> employees() {
         return userAccountService.activeEmployees();
+    }
+
+    @PostMapping("/employees")
+    public UserAccountResponse createEmployee(@Valid @RequestBody SaveEmployeeAccountRequest request) {
+        return userAccountService.createEmployee(request);
+    }
+
+    @PutMapping("/employees/{id}/shift")
+    public UserAccountResponse updateEmployeeShift(
+            @PathVariable Long id,
+            @Valid @RequestBody SaveEmployeeShiftRequest request
+    ) {
+        return userAccountService.updateEmployeeShift(id, request);
     }
 
     @GetMapping("/orders")
@@ -127,6 +137,11 @@ public class AdminController {
     @GetMapping("/menu")
     public List<MenuItemResponse> allMenu() {
         return menuService.findAll();
+    }
+
+    @PostMapping(value = "/menu/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, String> uploadMenuImage(@RequestParam("file") MultipartFile file) {
+        return Map.of("imageUrl", menuService.saveImage(file));
     }
 
     @PostMapping("/menu")

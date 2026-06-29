@@ -1,4 +1,4 @@
-# BrewVibe Frontend Full Code Note
+# Dika Coffe Shop Frontend Full Code Note
 
 File ini berisi full code frontend yang kamu kirim dalam satu file TypeScript/React.
 
@@ -304,9 +304,9 @@ const mockApi = {
   },
   loginInternal: async (data) => {
     await delay(600);
-    if (data.email === 'admin@brewvibe.id' && data.password === 'admin123') return { fullName: 'Admin Utama', role: 'ADMIN' };
-    if (data.email === 'pegawai@brewvibe.id' && data.password === 'pegawai123') return { fullName: 'Pegawai Shift 1', role: 'PEGAWAI' };
-    throw new Error('Email atau password salah (Gunakan: admin@brewvibe.id / admin123)');
+    if (data.email === 'admin@dikacoffeshop.id' && data.password === 'admin123') return { fullName: 'Admin Utama', role: 'ADMIN' };
+    if (data.email === 'pegawai@dikacoffeshop.id' && data.password === 'pegawai123') return { fullName: 'Pegawai Shift 1', role: 'PEGAWAI' };
+    throw new Error('Email atau password salah (Gunakan: admin@dikacoffeshop.id / admin123)');
   },
   ambilDataAdmin: async () => {
     await delay(600);
@@ -419,7 +419,7 @@ function LayoutInternal({ jenis, tabAktif, setTabAktif, tabs, judul, deskripsi, 
         <div className="logo-internal">
           <span>B</span>
           <div>
-            <b style={{ fontSize: '1.2rem', display: 'block' }}>BrewVibe</b>
+            <b style={{ fontSize: '1.2rem', display: 'block' }}>Dika Coffe Shop</b>
             <small style={{ color: 'rgba(255,255,255,.5)' }}>{admin ? 'Ruang Admin' : 'Ruang Pegawai'}</small>
           </div>
         </div>
@@ -463,7 +463,7 @@ function HeaderUtama({ ubahHalaman, bukaLogin, user, keluar }) {
   return (
     <header className="site-header">
       <button className="brand" onClick={() => ubahHalaman('home')}>
-        <span>B</span><strong>BrewVibe</strong>
+        <span>B</span><strong>Dika Coffe Shop</strong>
       </button>
       <nav className="desktop-nav" style={{ display: 'flex', gap: '8px' }}>
         {navigasi.map(([key, label]) => (
@@ -491,7 +491,7 @@ function FooterProfesional({ bukaLogin }) {
   return (
     <footer className="footer-pro">
       <div>
-        <h2>BrewVibe</h2>
+        <h2>Dika Coffe Shop</h2>
         <p style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>Sistem reservasi digital untuk mengelola meja, pesanan, promo, dan operasional coffee shop.</p>
       </div>
       <div>
@@ -505,9 +505,9 @@ function FooterProfesional({ bukaLogin }) {
       </div>
       <div>
         <h3>Kontak</h3>
-        <p style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>Jl. Aroma Kopi No. 21<br />Buka 09.00 - 22.00<br />support@brewvibe.id</p>
+        <p style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>Jl. Aroma Kopi No. 21<br />Buka 09.00 - 22.00<br />support@dikacoffeshop.id</p>
       </div>
-      <small>© 2026 BrewVibe Coffee Reservation System.</small>
+      <small>© 2026 Dika Coffe Shop Coffee Reservation System.</small>
     </footer>
   );
 }
@@ -516,7 +516,7 @@ function FooterProfesional({ bukaLogin }) {
 // 6. PAGES
 // ==========================================
 function LoginInternal({ mode, tutup, sukses, beriNotifikasi }) {
-  const [form, setForm] = useState({ email: mode === 'admin' ? 'admin@brewvibe.id' : 'pegawai@brewvibe.id', password: mode === 'admin' ? 'admin123' : 'pegawai123' });
+  const [form, setForm] = useState({ email: mode === 'admin' ? 'admin@dikacoffeshop.id' : 'pegawai@dikacoffeshop.id', password: mode === 'admin' ? 'admin123' : 'pegawai123' });
   const [loading, setLoading] = useState(false);
 
   const masuk = async (e) => {
@@ -571,7 +571,7 @@ function BerandaPelanggan({ ubahHalaman, menu }) {
       <div className="interactive-hero-shell" style={{ '--warna-produk': produkAktif.warna, '--warna-produk-gelap': produkAktif.warnaGelap }}>
         <div className="interactive-product-layout">
           <div className="interactive-product-copy">
-            <span className="landing-eyebrow">BrewVibe System</span>
+            <span className="landing-eyebrow">Dika Coffe Shop System</span>
             <AnimatePresence mode="wait">
               <motion.div key={produkAktif.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
                 <h1>{produkAktif.judul} <br/><span>{produkAktif.subjudul}</span></h1>

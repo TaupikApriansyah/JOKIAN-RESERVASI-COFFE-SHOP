@@ -33,7 +33,7 @@ const produkHero = [
     nama: 'Nasi Goreng Pedas',
     judul: 'Taste authentic',
     subjudul: 'spicy goodness',
-    deskripsi: 'Nasi goreng premium dengan telur, sayuran segar, dan bumbu khas BrewVibe untuk pengalaman makan yang lebih lengkap.',
+    deskripsi: 'Nasi goreng premium dengan telur, sayuran segar, dan bumbu khas Dika Coffe Shop untuk pengalaman makan yang lebih lengkap.',
     harga: 35000,
     warna: '#FBBF24',
     warnaGelap: '#B45309',
@@ -150,7 +150,7 @@ export default function BerandaPelanggan({ ubahHalaman, menu = [] }) {
 
         <div className="product-hero-content interactive-product-layout">
           <motion.div className="product-copy interactive-product-copy" variants={grupBertahap}>
-            <motion.span variants={masukAtas} className="landing-eyebrow">BrewVibe Reservation System</motion.span>
+            <motion.span variants={masukAtas} className="landing-eyebrow">Dika Coffe Shop Reservation System</motion.span>
             <AnimatePresence mode="wait">
               <motion.div
                 key={produkAktif.id}
@@ -188,7 +188,7 @@ export default function BerandaPelanggan({ ubahHalaman, menu = [] }) {
               </button>
             </motion.div>
 
-            <motion.div variants={masukAtas} className="interactive-product-grid" aria-label="Pilih produk unggulan BrewVibe">
+            <motion.div variants={masukAtas} className="interactive-product-grid" aria-label="Pilih produk unggulan Dika Coffe Shop">
               {produkHero.map((item) => (
                 <KartuProdukInteraktif
                   key={item.id}
@@ -238,8 +238,8 @@ export default function BerandaPelanggan({ ubahHalaman, menu = [] }) {
         </div>
       </motion.div>
 
-      <section className="why-noir reveal" aria-label="Keunggulan sistem BrewVibe">
-        <span className="landing-eyebrow">Why BrewVibe</span>
+      <section className="why-noir reveal" aria-label="Keunggulan sistem Dika Coffe Shop">
+        <span className="landing-eyebrow">Why Dika Coffe Shop</span>
         <h2>Reservasi meja, pemesanan menu, dan promo dalam satu alur yang rapi.</h2>
         <div className="why-grid-noir">
           {keunggulan.map((item) => (
@@ -304,7 +304,7 @@ export default function BerandaPelanggan({ ubahHalaman, menu = [] }) {
         </div>
       </section>
 
-      <section className="menu-preview-noir reveal" aria-label="Menu unggulan BrewVibe">
+      <section className="menu-preview-noir reveal" aria-label="Menu unggulan Dika Coffe Shop">
         <div className="section-title-row compact-title">
           <div>
             <span className="landing-eyebrow">Menu Preview</span>

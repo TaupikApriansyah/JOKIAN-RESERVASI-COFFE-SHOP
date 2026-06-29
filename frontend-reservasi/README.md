@@ -1,4 +1,4 @@
-# BrewVibe Premium Frontend
+# Dika Coffe Shop Premium Frontend
 
 Frontend React + Vite untuk aplikasi reservasi cafe. Layout tetap memakai desain lama, tetapi data sudah tersambung ke REST API Spring Boot.
 
@@ -20,15 +20,15 @@ npm run build
 ## Akun demo
 
 Customer:
-- Email: `customer@brewvibe.id`
+- Email: `customer@dikacoffeshop.id`
 - Password: `customer123`
 
 Admin:
-- Email: `admin@brewvibe.id`
+- Email: `admin@dikacoffeshop.id`
 - Password: `admin123`
 
 Pegawai:
-- Email: `pegawai@brewvibe.id`
+- Email: `pegawai@dikacoffeshop.id`
 - Password: `pegawai123`
 
 ## Data meja

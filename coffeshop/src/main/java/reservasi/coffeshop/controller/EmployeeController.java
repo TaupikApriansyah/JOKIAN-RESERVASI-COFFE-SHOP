@@ -24,8 +24,11 @@ public class EmployeeController {
     }
 
     @GetMapping("/reservations")
-    public List<ReservationResponse> reservations(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return reservationService.findByDate(date);
+    public List<ReservationResponse> reservations(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String employeeName
+    ) {
+        return reservationService.findByDate(date, employeeName);
     }
 
     @PutMapping("/reservations/{id}/status")
@@ -34,8 +37,8 @@ public class EmployeeController {
     }
 
     @GetMapping("/orders/today")
-    public List<OrderResponse> todayOrders() {
-        return orderService.findToday();
+    public List<OrderResponse> todayOrders(@RequestParam(required = false) String employeeName) {
+        return orderService.findToday(employeeName);
     }
 
     @PutMapping("/orders/{id}/status")
